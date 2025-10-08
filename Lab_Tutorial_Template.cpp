@@ -137,6 +137,15 @@ const std::vector<uint16_t> cube_indices = {
     0,4,7,  7,3,0,
 };
 
+const std::vector<uint16_t> cube_edge_indices = {
+    // back face (-Z)
+    0,1,  1,2,  2,3,  3,0,
+    // front face (+Z)
+    4,5,  5,6,  6,7,  7,4,
+    // side edges (connecting back/front)
+    0,4,  1,5,  2,6,  3,7
+};
+
 
 std::vector<Vertex> vertices;
 std::vector<uint16_t> indices;
@@ -615,7 +624,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     //inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+    //inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE; 
 
     VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
@@ -984,7 +994,8 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 	//vkCmdDraw(commandBuffer, 6, 1, 0, 0); // 6 for the unique vertex count for exercise 1
-	vkCmdDraw(commandBuffer, 8, 1, 0, 0); // 8 for the vertex points i want to visualise for exercise 5
+	// vkCmdDraw(commandBuffer, 8, 1, 0, 0); // 8 for the vertex points i want to visualise for exercise 5
+	vkCmdDrawIndexed(commandBuffer, 24, 1, 0, 0, 0);// 24 for the line list indices for exercise 6
     vkCmdEndRendering(commandBuffer);
 
     VkImageMemoryBarrier2 imageBarrierToPresent{};

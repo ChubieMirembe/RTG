@@ -221,16 +221,28 @@ altering the shader to make the points more visible.
 **Solution:**
 
 ```c++
+const std::vector<uint16_t> cube_edge_indices = {
+    // back face (-Z)
+    0,1,  1,2,  2,3,  3,0,
+    // front face (+Z)
+    4,5,  5,6,  6,7,  7,4,
+    // side edges (connecting back/front)
+    0,4,  1,5,  2,6,  3,7
+};
+```
+```c++
+inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+```
+```c++
+vkCmdDrawIndexed(commandBuffer, 24, 1, 0, 0, 0);// 24 for the line list indices for exercise 6
 ```
 ```c++
 ```
-```c++
-```
-```c++
-```
+![](images/ex6.png)
 
 **Reflection:**
-
+When compiled my initial attempt to render the cube's edges as lines, I encountered an issue where the lines
+on one face was not visible. After some investigation, I realized that the problem was due 
 
 ### EXERCISE 7: TRIANGLE STRIPS
 #### Goal: Render the cube using the VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP topology.
