@@ -111,12 +111,39 @@ const std::vector<uint16_t> twoSquares_indices = {
     4,5,6, 6,7,4
 };
 
+const std::vector<Vertex> cube_vertices = {
+    // back (-Z)
+    {{-0.5f, -0.5f, -0.5f}, {1,0,0}}, // 0
+    {{ 0.5f, -0.5f, -0.5f}, {0,1,0}}, // 1
+    {{ 0.5f,  0.5f, -0.5f}, {0,0,1}}, // 2
+    {{-0.5f,  0.5f, -0.5f}, {1,1,1}}, // 3
+
+    // front (+Z)
+    {{-0.5f, -0.5f,  0.5f}, {1,0,1}}, // 4
+    {{ 0.5f, -0.5f,  0.5f}, {0,1,1}}, // 5
+    {{ 0.5f,  0.5f,  0.5f}, {1,1,0}}, // 6
+    {{-0.5f,  0.5f,  0.5f}, {0.5,0.5,0.5}}, // 7
+};
+
+// In this format because it helps me visualize the triangles
+const std::vector<uint16_t> cube_indices = {
+    // front (+Z)
+    4,5,6,  6,7,4,
+    // right (+X)
+    5,1,2,  2,6,5,
+    // back (-Z)
+    1,0,3,  3,2,1,
+    // left (-X)
+    0,4,7,  7,3,0,
+};
+
+
 std::vector<Vertex> vertices;
 std::vector<uint16_t> indices;
 
 void loadModel() {
-    vertices = twoSquare_vertices;
-    indices = twoSquares_indices;
+    vertices = cube_vertices;
+    indices = cube_indices;
 }
 
 // --- Vulkan Debug Messenger ---
@@ -601,9 +628,10 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    //rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
     rasterizer.frontFace =  VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -953,8 +981,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 1, 0, 0, 0);
-
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
     //vkCmdDraw(commandBuffer, 6, 1, 0, 0); // 6 for the unique vertex count
     vkCmdEndRendering(commandBuffer);
 

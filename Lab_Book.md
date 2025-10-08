@@ -90,13 +90,8 @@ void HelloTriangleApplication::cleanup() {
     vkCmdEndRendering(commandBuffer);
 ```
 
-```c++
+![](images/ex1.png)
 
-```
-
-```c++
-
-```
 **Reflection:**
 After designing two distinct triangles with custom vertex data, I ensured they were clearly visible and did not overlap on the screen.
 This initial step helped me understand how to define and manage vertex positions manually.
@@ -136,11 +131,124 @@ void loadModel() {
 }
 ```
 
+![](images/ex2.png)
+
 **Reflection:**
 After I had been exploring vulkan with the first exercise, this one was very straightforward, 
 I just had to uncomment the index buffer I had removed to get the code using the index again.
 
-### EXERCISE 3: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
+### EXERCISE 3: DRAW THE FOUR WALLS OF A CUBE
+#### Goal: Extend the previous exercise to draw the four side faces of a cube.
+
+**Solution:**
+
+```c++
+const std::vector<Vertex> cube_vertices = {
+    // back (-Z)
+    {{-0.5f, -0.5f, -0.5f}, {1,0,0}}, // 0
+    {{ 0.5f, -0.5f, -0.5f}, {0,1,0}}, // 1
+    {{ 0.5f,  0.5f, -0.5f}, {0,0,1}}, // 2
+    {{-0.5f,  0.5f, -0.5f}, {1,1,1}}, // 3
+
+    // front (+Z)
+    {{-0.5f, -0.5f,  0.5f}, {1,0,1}}, // 4
+    {{ 0.5f, -0.5f,  0.5f}, {0,1,1}}, // 5
+    {{ 0.5f,  0.5f,  0.5f}, {1,1,0}}, // 6
+    {{-0.5f,  0.5f,  0.5f}, {0.5,0.5,0.5}}, // 7
+};
+
+// In this format because it helps me visualize the triangles
+const std::vector<uint16_t> cube_indices = {
+    // front (+Z)
+    4,5,6,  6,7,4,
+    // right (+X)
+    5,1,2,  2,6,5,
+    // back (-Z)
+    1,0,3,  3,2,1,
+    // left (-X)
+    0,4,7,  7,3,0,
+};
+```
+```c++
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
+```
+
+![](images/ex3.png)
+
+**Reflection:**
+I was able to draw the four walls of a cube by defining the appropriate vertices and indices.
+I attempted to asjust the view matrix to get a better perspective of the cube, but I was unable to get it looking it down into
+the way I wanted. I think I need to understand better how the view matrix works. Even though I was able to set the cube, 
+I still feel like i could have a better understanding of visualising 3D objects in space.
+
+It would be helpful to get some help on how to position the camera to get a better view of the cube.
+
+### EXERCISE 4:  WIREFRAME RENDERING
+#### Goal: Render the cube from the previous exercise as a wireframe, showing only its edges.
+
+**Solution:**
+```c++
+rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+```
+![](images/ex4.png)
+
+**Reflection:**
+This exercise was very straightforward, I just had to change the polygon mode to line. But seeing the cube in wireframe mode
+helped me understand better how the cube is constructed from its vertices and edges.
+
+
+### EXERCISE 5: RENDER THE CUBE'S VERTICES AS POINTS
+#### Goal: Render only the eight vertices of the cube as individual points.
+
+**Solution:**
+
+```c++
+```
+```c++
+```
+```c++
+```
+```c++
+```
+
+**Reflection:**
+
+
+### EXERCISE 6: RENDER THE CUBE'S EDGES AS LINES
+#### Goal: Render the 12 edges of the cube using line segments.
+
+**Solution:**
+
+```c++
+```
+```c++
+```
+```c++
+```
+```c++
+```
+
+**Reflection:**
+
+
+### EXERCISE 7: TRIANGLE STRIPS
+#### Goal: Render the cube using the VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP topology.
+
+**Solution:**
+
+```c++
+```
+```c++
+```
+```c++
+```
+```c++
+```
+
+**Reflection:**
+
+
+### EXERCISE 8: DRAWING MULTIPLE CUBES USING INSTANCED DRAWING
 #### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
 
 **Solution:**
@@ -157,8 +265,8 @@ I just had to uncomment the index buffer I had removed to get the code using the
 **Reflection:**
 
 
-### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
-#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
+### EXERCISE 9: DRAWING TWO CUBES USING PUSH CONSTANTS
+#### Goal: Render two distinct wireframe cubes side-by-side using the same vertex/index buffers, but with different cube positions
 
 **Solution:**
 
@@ -173,34 +281,4 @@ I just had to uncomment the index buffer I had removed to get the code using the
 
 **Reflection:**
 
-
-
-### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
-#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
-
-**Solution:**
-
-```c++
-```
-```c++
-```
-```c++
-```
-```c++
-```
-
-**Reflection:**
-
-
-### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
-#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
-
-### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
-#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
-
-### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
-#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
-
-### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
-#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
 
