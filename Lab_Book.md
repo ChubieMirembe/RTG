@@ -242,7 +242,7 @@ vkCmdDrawIndexed(commandBuffer, 24, 1, 0, 0, 0);// 24 for the line list indices 
 
 **Reflection:**
 When compiled my initial attempt to render the cube's edges as lines, I encountered an issue where the lines
-on one face was not visible. After some investigation, I realized that the problem was due 
+on one face was not visible. After some investigation, I realized that the problem was due to me not pointing to the correct indices.
 
 ### EXERCISE 7: TRIANGLE STRIPS
 #### Goal: Render the cube using the VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP topology.
@@ -257,6 +257,7 @@ on one face was not visible. After some investigation, I realized that the probl
 ```
 ```c++
 ```
+![](images/ex7.png)
 
 **Reflection:**
 
@@ -274,6 +275,7 @@ on one face was not visible. After some investigation, I realized that the probl
 ```
 ```c++
 ```
+![](images/ex8.png)
 
 **Reflection:**
 
@@ -291,6 +293,7 @@ on one face was not visible. After some investigation, I realized that the probl
 ```
 ```c++
 ```
+![](images/ex9.png)
 
 **Reflection:**
 

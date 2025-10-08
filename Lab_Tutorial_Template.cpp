@@ -143,7 +143,8 @@ const std::vector<uint16_t> cube_edge_indices = {
     // front face (+Z)
     4,5,  5,6,  6,7,  7,4,
     // side edges (connecting back/front)
-    0,4,  1,5,  2,6,  3,7
+    0,4,  1,5,  2,6,  3,7,
+
 };
 
 
@@ -152,7 +153,7 @@ std::vector<uint16_t> indices;
 
 void loadModel() {
     vertices = cube_vertices;
-    indices = cube_indices;
+    indices = cube_edge_indices;
 }
 
 // --- Vulkan Debug Messenger ---
