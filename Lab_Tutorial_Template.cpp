@@ -87,6 +87,7 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
+// I could have modified this vertex data, but I left it because I want to create my own.
 const std::vector<Vertex> Quad_vertices = {
     {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
     {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
@@ -102,8 +103,22 @@ std::vector<Vertex> vertices;
 std::vector<uint16_t> indices;
 
 void loadModel() {
-    vertices = Quad_vertices;
-    indices = Quad_indices;
+	// Unique vertex data for two triangles.
+    vertices = {
+        // First triangle (shifted left by -0.6 on X)
+        {{-0.5f - 0.6f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f - 0.6f, -0.5f, 0.0f},  {0.0f, 1.0f, 0.0f}},
+        {{0.0f - 0.6f,  0.5f, 0.0f},  {0.0f, 0.0f, 1.0f}},
+
+        // Second triangle (shifted right by +0.6 on X)
+        {{0.5f + 0.6f, -0.5f, 0.0f},  {1.0f, 1.0f, 0.0f}},
+        {{0.9f + 0.6f,  0.5f, 0.0f},  {0.0f, 1.0f, 1.0f}},
+        {{0.0f + 0.6f,  0.5f, 0.0f},  {1.0f, 0.0f, 1.0f}},
+    };
+
+
+    // indices cleared as the to triangle will have s
+    indices.clear();
 }
 
 // --- Vulkan Debug Messenger ---
@@ -270,7 +285,7 @@ void HelloTriangleApplication::initVulkan() {
     loadModel();
 
     createVertexBuffer();
-    createIndexBuffer();
+	//createIndexBuffer();  I don't need index buffer because the triangles are not sharing vertices.
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
@@ -293,11 +308,16 @@ void HelloTriangleApplication::cleanup() {
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
+	/*
+    This whole section is commented out because it deals with handling the memory for vertex and index buffers
+    which I am no longer using.
+
     vkDestroyBuffer(device, indexBuffer, nullptr);
     vkFreeMemory(device, indexBufferMemory, nullptr);
 
     vkDestroyBuffer(device, vertexBuffer, nullptr);
     vkFreeMemory(device, vertexBufferMemory, nullptr);
+    */
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyBuffer(device, uniformBuffers[i], nullptr);
@@ -937,10 +957,16 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     VkBuffer vertexBuffers[] = { vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    /*
+	* This is the function call to bind the index buffer, which I am no longer using.
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    */
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+    /*
+	* I'm no longer using indexed drawing.
     vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 1, 0, 0, 0);
-
+    */
+    vkCmdDraw(commandBuffer, 6, 1, 0, 0); // 6 for the unique vertex count
     vkCmdEndRendering(commandBuffer);
 
     VkImageMemoryBarrier2 imageBarrierToPresent{};
