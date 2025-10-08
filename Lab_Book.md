@@ -203,16 +203,17 @@ helped me understand better how the cube is constructed from its vertices and ed
 **Solution:**
 
 ```c++
+inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
 ```
 ```c++
+vkCmdDraw(commandBuffer, 8, 1, 0, 0); // 8 for the vertex points i want to visualise for exercise 5
 ```
-```c++
-```
-```c++
-```
+![](images/ex5.png)
 
 **Reflection:**
-
+This exercise was also straightforward, I just had to change the topology to point list and adjust the draw call to render only 8 points.
+But what I learned from this exercise is how to manipulate the topology to achieve different rendering effects and also,
+altering the shader to make the points more visible.
 
 ### EXERCISE 6: RENDER THE CUBE'S EDGES AS LINES
 #### Goal: Render the 12 edges of the cube using line segments.
