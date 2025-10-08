@@ -250,8 +250,33 @@ on one face was not visible. After some investigation, I realized that the probl
 **Solution:**
 
 ```c++
+const std::vector<uint16_t> cube_strip_indices = {
+    // Front (+Z)
+    4, 5, 7, 6,
+    6, 6, 5, 5,         
+
+    // Right (+X)
+    5, 1, 6, 2,
+    2, 2, 1, 1,
+
+    // Back (-Z)
+    1, 0, 2, 3,
+    3, 3, 0, 0,
+
+    // Left (-X)
+    0, 4, 3, 7,
+    7, 7, 4, 4,
+
+    // Top (+Y)
+    7, 6, 3, 2,
+    2, 2, 4, 4,
+
+    // Bottom (-Y)
+    4, 5, 0, 1
+};
 ```
 ```c++
+inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; 
 ```
 ```c++
 ```
@@ -260,7 +285,13 @@ on one face was not visible. After some investigation, I realized that the probl
 ![](images/ex7.png)
 
 **Reflection:**
+After the initial attempt to render the cube using triangle strips, I noticed that some faces (top and bottom) were not visible.
+I had thought I did it wrong, but then I realised the issue was I wasn't using a deptth buffer. Without a depth buffer, the triangles 
+are drawn in the order they are processed, which can lead to some faces getting overdawned by others, resulting in them not being visible.
 
+**Question:**
+I would like to understand if my understanding is correct, and also how to implement a depth buffer in Vulkan 
+to properly render 3D objects like this cube.
 
 ### EXERCISE 8: DRAWING MULTIPLE CUBES USING INSTANCED DRAWING
 #### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
@@ -268,8 +299,16 @@ on one face was not visible. After some investigation, I realized that the probl
 **Solution:**
 
 ```c++
+vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 2, 0, 0, 0);
 ```
 ```c++
+void main() {
+    vec3 offset = vec3(gl_InstanceIndex * 3.0 - 1.5, 0.0, 0.0);
+    mat4 instanceModel = ubo.model * translate(mat4(1.0), offset);
+    gl_Position = ubo.proj * ubo.view * instanceModel * vec4(inPosition, 1.0);
+    fragColor = inColor;
+    gl_PointSize = 10.0;
+}
 ```
 ```c++
 ```
@@ -286,6 +325,7 @@ on one face was not visible. After some investigation, I realized that the probl
 **Solution:**
 
 ```c++
+
 ```
 ```c++
 ```

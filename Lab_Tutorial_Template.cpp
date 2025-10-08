@@ -148,12 +148,37 @@ const std::vector<uint16_t> cube_edge_indices = {
 };
 
 
+const std::vector<uint16_t> cube_strip_indices = {
+    // Front (+Z)
+    4, 5, 7, 6,
+    6, 6, 5, 5,         
+
+    // Right (+X)
+    5, 1, 6, 2,
+    2, 2, 1, 1,
+
+    // Back (-Z)
+    1, 0, 2, 3,
+    3, 3, 0, 0,
+
+    // Left (-X)
+    0, 4, 3, 7,
+    7, 7, 4, 4,
+
+    // Top (+Y)
+    7, 6, 3, 2,
+    2, 2, 4, 4,
+
+    // Bottom (-Y)
+    4, 5, 0, 1
+};
+
 std::vector<Vertex> vertices;
 std::vector<uint16_t> indices;
 
 void loadModel() {
     vertices = cube_vertices;
-    indices = cube_edge_indices;
+    indices = cube_strip_indices;
 }
 
 // --- Vulkan Debug Messenger ---
@@ -624,10 +649,11 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    //inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;      // for question 7
+    //inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
     //inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    inputAssembly.primitiveRestartEnable = VK_FALSE; 
+    //inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+	inputAssembly.primitiveRestartEnable = VK_TRUE;     // Why is it good to have this enabled? 
 
     VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
@@ -640,8 +666,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    //rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    //rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_NONE;
     rasterizer.frontFace =  VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -993,10 +1019,11 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-	//vkCmdDraw(commandBuffer, 6, 1, 0, 0); // 6 for the unique vertex count for exercise 1
-	// vkCmdDraw(commandBuffer, 8, 1, 0, 0); // 8 for the vertex points i want to visualise for exercise 5
-	vkCmdDrawIndexed(commandBuffer, 24, 1, 0, 0, 0);// 24 for the line list indices for exercise 6
+    //vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 2, 0, 0, 0);             // exercise 8 : 2 instances
+	//kCmdDraw(commandBuffer, 6, 1, 0, 0); // 6 for the unique vertex count for exercise 1
+	//vkCmdDraw(commandBuffer, 8, 1, 0, 0); // 8 for the vertex points i want to visualise for exercise 5
+	//vkCmdDrawIndexed(commandBuffer, 24, 1, 0, 0, 0);// 24 for the line list indices for exercise 6
     vkCmdEndRendering(commandBuffer);
 
     VkImageMemoryBarrier2 imageBarrierToPresent{};
