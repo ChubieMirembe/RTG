@@ -5,6 +5,7 @@
 ### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
 #### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
 
+**Solution:**
 ```c++
 void loadModel() {
 	// Unique vertex data for two triangles.
@@ -110,4 +111,96 @@ This exercise was a valuable learning experience. It not only taught me how to c
 also gave me deeper insight into the structure of Vulkan applications. By removing index buffer usage, I was able to 
 explore various parts of the Vulkan pipeline and understand how different components interact when rendering geometry.
 
+### EXERCISE 2: DRAW TWO SQUARES USING AN INDEX BUFFER
+#### Goal: Draw two squares (each composed of two triangles) using an index buffer to reuse vertices
+
+**Solution:**
+
+```c++
+const std::vector<Vertex> twoSquare_vertices = {
+    {{-0.8f,-0.5f,0},{1,0,0}}, {{-0.2f,-0.5f,0},{0,1,0}},
+    {{-0.2f, 0.1f,0},{0,0,1}}, {{-0.8f, 0.1f,0},{1,1,1}},
+    {{ 0.2f,-0.5f,0},{1,0,1}}, {{ 0.8f,-0.5f,0},{0,1,1}},
+    {{ 0.8f, 0.1f,0},{1,1,0}}, {{ 0.2f, 0.1f,0},{0.5f,0.5f,0.5f}},
+};
+
+const std::vector<uint16_t> twoSquares_indices = {
+    0,1,2, 2,3,0,  
+    4,5,6, 6,7,4
+};
+```
+```c++
+void loadModel() {
+    vertices = twoSquare_vertices;
+    indices = twoSquares_indices;
+}
+```
+
+**Reflection:**
+After I had been exploring vulkan with the first exercise, this one was very straightforward, 
+I just had to uncomment the index buffer I had removed to get the code using the index again.
+
+### EXERCISE 3: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
+#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
+
+**Solution:**
+
+```c++
+```
+```c++
+```
+```c++
+```
+```c++
+```
+
+**Reflection:**
+
+
+### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
+#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
+
+**Solution:**
+
+```c++
+```
+```c++
+```
+```c++
+```
+```c++
+```
+
+**Reflection:**
+
+
+
+### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
+#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
+
+**Solution:**
+
+```c++
+```
+```c++
+```
+```c++
+```
+```c++
+```
+
+**Reflection:**
+
+
+### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
+#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
+
+### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
+#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
+
+### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
+#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
+
+### EXERCISE 1: DRAW TWO TRIANGLES WITHOUT USING VERTEX INDICES
+#### Goal: Render two distinct triangles instead of one quad using vkCmdDraw().
 
