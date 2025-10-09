@@ -90,98 +90,79 @@ struct ModelPushConstant {
     glm::mat4 model;
 };
 
-// I could have modified this vertex data, but I left it because I want to create my own.
 const std::vector<Vertex> Quad_vertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}}, //0
+    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}}, //1
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}, //2
+    {{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}}, //3
+
+   {{-0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}}, //4
+   {{0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f}}, //5
+   {{ 0.5f, 0.5f, 1.0f }, {1.0f, 0.0f, 0.0f}}, //6
+   {{-0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}}, //7
+
+   {{0.5f, -0.5f, 0.f}, {1.0f, 1.0f, 1.0f}}, //8
+   {{0.5f, 0.5f, 0.f}, {1.0f, 0.0f, 0.8f}}, //9
+   {{0.5f, 0.5f, 1.f}, {1.0f, 0.0f, 0.4f}}, //10
+   {{0.5f, -0.5f, 1.f}, {1.0f, 1.0f, 1.0f}}, //11
+
+   {{-0.5f, -0.5f, 0.f}, {1.0f, 1.0f, 1.0f}}, //12
+   {{-0.5f, 0.5f, 0.f}, {1.0f, 1.0f, 1.0f}}, //13
+   {{-0.5f, 0.5f, 1.f}, {1.0f, 1.0f, 1.0f}}, //14
+   {{-0.5f, -0.5f, 1.f}, {1.0f, 1.0f, 1.0f}}, //15
+
+   {{-0.5f, 0.5f, 0.f}, {0.f, 1.0f, 1.0f}}, //16
+   {{0.5f, 0.5f, 0.f}, {0.0f, 0.0f, 0.5f}}, //17
+   {{0.5f, 0.5f, 1.f}, {0.0f, 1.0f, 1.0f}}, //18
+   {{-0.5f, 0.5f, 1.f}, {0.0f, 0.0f, 0.5f}}, //19
+
+   {{-0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 1.0f}}, //20
+   {{0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 1.0f}}, //21
+   {{0.5f, -0.5f, 1.f}, {1.0f, 0.0f, 1.0f}}, //22
+   {{-0.5f, -0.5f, 1.f}, {1.0f, 0.0f, 1.0f}}, //23
+
 };
 
 const std::vector<uint16_t> Quad_indices = {
-    0, 1, 2, 2, 3, 0
+    0, 1, 2, 2, 3, 0,
+    4, 5, 6, 6, 7, 4,
+    8, 9, 10, 10, 11, 8,
+    12, 13, 14, 14, 15, 12,
+    16, 17, 18, 18, 19, 16,
+    20, 21, 22, 22, 23, 20
 };
 
-const std::vector<Vertex> twoSquare_vertices = {
-    {{-0.8f,-0.5f,0},{1,0,0}}, {{-0.2f,-0.5f,0},{0,1,0}},
-    {{-0.2f, 0.1f,0},{0,0,1}}, {{-0.8f, 0.1f,0},{1,1,1}},
-    {{ 0.2f,-0.5f,0},{1,0,1}}, {{ 0.8f,-0.5f,0},{0,1,1}},
-    {{ 0.8f, 0.1f,0},{1,1,0}}, {{ 0.2f, 0.1f,0},{0.5f,0.5f,0.5f}},
+const std::vector<Vertex> Cube_vertices = {
+    {{-0.5f, -0.5f, -0.5f}, {1,0,0}},
+    {{ 0.5f, -0.5f, -0.5f}, {0,1,0}},
+    {{ 0.5f,  0.5f, -0.5f}, {0,0,1}},
+    {{-0.5f,  0.5f, -0.5f}, {1,1,0}},
+    {{-0.5f, -0.5f,  0.5f}, {1,0,1}},
+    {{ 0.5f, -0.5f,  0.5f}, {0,1,1}},
+    {{ 0.5f,  0.5f,  0.5f}, {1,1,1}},
+    {{-0.5f,  0.5f,  0.5f}, {0,0,0}},
 };
 
-const std::vector<uint16_t> twoSquares_indices = {
-    0,1,2, 2,3,0,  
-    4,5,6, 6,7,4
-};
-
-const std::vector<Vertex> cube_vertices = {
-    // back (-Z)
-    {{-0.5f, -0.5f, -0.5f}, {1,0,0}}, // 0
-    {{ 0.5f, -0.5f, -0.5f}, {0,1,0}}, // 1
-    {{ 0.5f,  0.5f, -0.5f}, {0,0,1}}, // 2
-    {{-0.5f,  0.5f, -0.5f}, {1,1,1}}, // 3
-
-    // front (+Z)
-    {{-0.5f, -0.5f,  0.5f}, {1,0,1}}, // 4
-    {{ 0.5f, -0.5f,  0.5f}, {0,1,1}}, // 5
-    {{ 0.5f,  0.5f,  0.5f}, {1,1,0}}, // 6
-    {{-0.5f,  0.5f,  0.5f}, {0.5,0.5,0.5}}, // 7
-};
-
-// In this format because it helps me visualize the triangles
-const std::vector<uint16_t> cube_indices = {
-    // front (+Z)
-    4,5,6,  6,7,4,
-    // right (+X)
-    5,1,2,  2,6,5,
-    // back (-Z)
-    1,0,3,  3,2,1,
-    // left (-X)
-    0,4,7,  7,3,0,
-};
-
-const std::vector<uint16_t> cube_edge_indices = {
-    // back face (-Z)
-    0,1,  1,2,  2,3,  3,0,
-    // front face (+Z)
-    4,5,  5,6,  6,7,  7,4,
-    // side edges (connecting back/front)
-    0,4,  1,5,  2,6,  3,7,
-
-};
-
-
-const std::vector<uint16_t> cube_strip_indices = {
-    // Front (+Z)
-    4, 5, 7, 6,
-    6, 6, 5, 5,         
-
-    // Right (+X)
-    5, 1, 6, 2,
-    2, 2, 1, 1,
-
-    // Back (-Z)
-    1, 0, 2, 3,
-    3, 3, 0, 0,
-
-    // Left (-X)
-    0, 4, 3, 7,
-    7, 7, 4, 4,
-
-    // Top (+Y)
-    7, 6, 3, 2,
-    2, 2, 4, 4,
-
-    // Bottom (-Y)
-    4, 5, 0, 1
+const std::vector<uint16_t> Cube_edge_indices = {
+    0, 1, 2, 3,
+    7,
+    3, 1, 7, 5,
+    4,
+    5, 1, 4, 0,
+    2,
+    0, 2, 4, 6,
+    7,
+    6, 2, 7, 3,
+    5,
+    3, 5, 7, 4
 };
 
 std::vector<Vertex> vertices;
 std::vector<uint16_t> indices;
 
 void loadModel() {
-    vertices = cube_vertices;
-    indices = cube_strip_indices;
+    vertices = Cube_vertices;
+    indices = Cube_edge_indices;
 }
 
 // --- Vulkan Debug Messenger ---
@@ -228,7 +209,7 @@ private:
     VkSwapchainKHR swapChain = VK_NULL_HANDLE;;
     std::vector<VkImage> swapChainImages;
     VkFormat swapChainImageFormat = VK_FORMAT_UNDEFINED;;
-    VkExtent2D swapChainExtent{0, 0};
+    VkExtent2D swapChainExtent{ 0, 0 };
     std::vector<VkImageView> swapChainImageViews;
 
     // --- Graphics Pipeline ---
@@ -348,7 +329,7 @@ void HelloTriangleApplication::initVulkan() {
     loadModel();
 
     createVertexBuffer();
-	createIndexBuffer();
+    createIndexBuffer();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
@@ -370,7 +351,6 @@ void HelloTriangleApplication::cleanup() {
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-
 
     vkDestroyBuffer(device, indexBuffer, nullptr);
     vkFreeMemory(device, indexBufferMemory, nullptr);
@@ -652,11 +632,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;      // for question 7
-    //inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-    //inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-    //inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-	inputAssembly.primitiveRestartEnable = VK_TRUE;     // Why is it good to have this enabled? 
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
@@ -669,11 +646,10 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    //rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_NONE;
-    rasterizer.frontFace =  VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -697,7 +673,6 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
-
     VkPushConstantRange pushConstantRange{};
     pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     pushConstantRange.offset = 0;
@@ -707,10 +682,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
-
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create pipeline layout!");
@@ -1026,28 +999,38 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     VkRect2D scissor{};
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-    ModelPushConstant pushUBO{};
-
-    // First cube
-    pushUBO.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
-    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(ModelPushConstant), &pushUBO);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
-    // Second cube
-    pushUBO.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(ModelPushConstant), &pushUBO);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
     VkBuffer vertexBuffers[] = { vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-    //vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-    //vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 2, 0, 0, 0);             // exercise 8 : 2 instances
-	//kCmdDraw(commandBuffer, 6, 1, 0, 0); // 6 for the unique vertex count for exercise 1
-	//vkCmdDraw(commandBuffer, 8, 1, 0, 0); // 8 for the vertex points i want to visualise for exercise 5
-	//vkCmdDrawIndexed(commandBuffer, 24, 1, 0, 0, 0);// 24 for the line list indices for exercise 6
+
+    ModelPushConstant pushUBO{};
+    pushUBO.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+    vkCmdPushConstants(
+        commandBuffer,
+        pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT,
+        0,
+        sizeof(ModelPushConstant),
+        &pushUBO
+    );
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 3, 0, 0, 0);
+
+    pushUBO.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    vkCmdPushConstants(
+        commandBuffer,
+        pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT,
+        0,
+        sizeof(ModelPushConstant),
+        &pushUBO
+    );
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 3, 0, 0, 0);
+
+    //vkCmdDraw(commandBuffer, 8, 1, 0, 0);
+
     vkCmdEndRendering(commandBuffer);
 
     VkImageMemoryBarrier2 imageBarrierToPresent{};

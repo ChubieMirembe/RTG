@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<mergePnt id="csViolations">
+  <StdViols>
+    <StdViol msg="The local variable 'device' hides a member variable declared in class 'HelloTriangleApplication'" ln="469" sev="1" auth="984381" rule="CODSTA-44" tool="c++test" cat="CODSTA" lang="cpp" locType="sr" config="1" hash="996365874" locStartln="469" locStartPos="21" locEndLn="469" locEndPos="22" locFile="Lab_Tutorial_Template/Lab_Tutorial_Template(Vulkan1_3)/Lab_Tutorial_Template.cpp"/>
+  </StdViols>
+</mergePnt>

@@ -1,0 +1,7 @@
+Lab_Tutorial_Template.cpp
+"C:\Users\984381\source\repos\ChubieMirembe\Week1-RTG-Lab\Lab_Tutorial_Template
+          .cpp", line 1026: error: "pushUBO" has already been declared in the
+          current scope
+      ModelPushConstant pushUBO{};
+                        ^
+
