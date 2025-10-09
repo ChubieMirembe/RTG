@@ -311,13 +311,30 @@ void main() {
 }
 ```
 ```c++
+void main() {
+    // Per-instance offset along X: ..., -1.5, 1.5, 4.5, ...
+    float idx = float(gl_InstanceIndex);
+    vec3 offset = vec3(idx * 2.0 - 1.5, 0.0, 0.0);
+
+    // Build translation matrix (column-major)
+    mat4 T = mat4(1.0);
+    T[3] = vec4(offset, 1.0);
+
+    mat4 instanceModel = ubo.model * T;
+    gl_Position = ubo.proj * ubo.view * instanceModel * vec4(inPosition, 1.0);
+    fragColor = inColor;
+}
 ```
 ```c++
 ```
 ![](images/ex8.png)
 
 **Reflection:**
-
+I was able to change the number of instances to 2 in the draw call, and then use the gl_InstanceIndex.
+I attempted to experimented with the multiplier and offset values to see how they affected the positioning of the cubes.
+So I was able to have a better understanding of how instanced drawing works in Vulkan. 
+It would be interesting to explore how to make sure that no clipping occurs when rendering multiple instances, 
+so I would like to understand how to adjust the view or projection matrices accordingly.
 
 ### EXERCISE 9: DRAWING TWO CUBES USING PUSH CONSTANTS
 #### Goal: Render two distinct wireframe cubes side-by-side using the same vertex/index buffers, but with different cube positions

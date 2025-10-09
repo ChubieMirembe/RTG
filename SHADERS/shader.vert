@@ -14,7 +14,7 @@ layout(location = 0) out vec3 fragColor;
 void main() {
     // Per-instance offset along X: ..., -1.5, 1.5, 4.5, ...
     float idx = float(gl_InstanceIndex);
-    vec3 offset = vec3(idx * 3.0 - 1.5, 0.0, 0.0);
+    vec3 offset = vec3(idx * 2.0 - 1.5, 0.0, 0.0);
 
     // Build translation matrix (column-major)
     mat4 T = mat4(1.0);
