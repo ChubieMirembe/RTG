@@ -236,8 +236,6 @@ inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 ```c++
 vkCmdDrawIndexed(commandBuffer, 24, 1, 0, 0, 0);// 24 for the line list indices for exercise 6
 ```
-```c++
-```
 ![](images/ex6.png)
 
 **Reflection:**
@@ -277,10 +275,6 @@ const std::vector<uint16_t> cube_strip_indices = {
 ```
 ```c++
 inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; 
-```
-```c++
-```
-```c++
 ```
 ![](images/ex7.png)
 
@@ -325,8 +319,6 @@ void main() {
     fragColor = inColor;
 }
 ```
-```c++
-```
 ![](images/ex8.png)
 
 **Reflection:**
@@ -343,15 +335,78 @@ so I would like to understand how to adjust the view or projection matrices acco
 
 ```c++
 
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 view;
+    mat4 proj;
+} ubo;
+
+layout(push_constant) uniform PushConstants {
+    mat4 model;
+} pushConstants;
+
+layout(location = 0) in vec3 inPosition;
+layout(location = 1) in vec3 inColor;
+
+layout(location = 0) out vec3 fragColor;
+
+void main() {
+    fragColor = inColor;
+    gl_Position = ubo.proj * ubo.view * pushConstants.model * vec4(inPosition, 1.0);
+}
 ```
 ```c++
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(ModelPushConstant);
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+
 ```
 ```c++
+    ModelPushConstant pushUBO{};
+    pushUBO.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+    vkCmdPushConstants(
+        commandBuffer,
+        pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT,
+        0,
+        sizeof(ModelPushConstant),
+        &pushUBO
+    );
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 3, 0, 0, 0);
+
+    pushUBO.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    vkCmdPushConstants(
+        commandBuffer,
+        pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT,
+        0,
+        sizeof(ModelPushConstant),
+        &pushUBO
+    );
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 3, 0, 0, 0);
 ```
 ```c++
+struct UniformBufferObject {
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
+};
+
+struct ModelPushConstant {
+    glm::mat4 model;
+};
 ```
 ![](images/ex9.png)
 
 **Reflection:**
-
+During this exercise, I encountered a challenge when trying to implement push constants for rendering two cubes. After following
+the steps, I realized that I something had gone wrong because I was not seeing any cubes rendered on the screen. and the window 
+would open and close immediately. I had to roll back to my previous working version and begin the exercise again from scratch.
+I was able to successfully implement push constants and render the two cubes side by side.
 
