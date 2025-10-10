@@ -246,37 +246,61 @@ on one face was not visible. After some investigation, I realized that the probl
 #### Goal: Render the cube using the VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP topology.
 
 **Solution:**
+```c++
+const std::vector<Vertex> Cube_vertices = {
+
+    {{-1.0f, -1.0f, +1.0f}, {1.0f, 0.0f, 0.0f}}, // 0
+    {{+1.0f, -1.0f, +1.0f}, {0.0f, 1.0f, 0.0f}}, // 1
+    {{+1.0f, +1.0f, +1.0f}, {0.0f, 0.0f, 1.0f}}, // 2
+    {{-1.0f, +1.0f, +1.0f}, {1.0f, 1.0f, 1.0f}}, // 3
+
+    {{-1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 1.0f}}, // 4
+    {{+1.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 0.0f}}, // 5
+    {{+1.0f, +1.0f, -1.0f}, {0.0f, 1.0f, 1.0f}}, // 6
+    {{-1.0f, +1.0f, -1.0f}, {1.0f, 0.5f, 0.0f}}, // 7
+};
+```
 
 ```c++
-const std::vector<uint16_t> cube_strip_indices = {
-    // Front (+Z)
-    4, 5, 7, 6,
-    6, 6, 5, 5,         
+const std::vector<uint16_t> Cube_edge_indices = {
+    // Face 1: Front (+Z) 
+    0, 1, 3, 2,
 
-    // Right (+X)
-    5, 1, 6, 2,
-    2, 2, 1, 1,
+    // Degenerate 
+    2, 1,
 
-    // Back (-Z)
-    1, 0, 2, 3,
-    3, 3, 0, 0,
+    // Face 2: Right (+X) 
+    1, 5, 2, 6,
 
-    // Left (-X)
-    0, 4, 3, 7,
-    7, 7, 4, 4,
+    // Degenerate 
+    6, 5,
 
-    // Top (+Y)
-    7, 6, 3, 2,
-    2, 2, 4, 4,
+    // Face 3: Back (-Z) 
+    5, 4, 6, 7,
 
-    // Bottom (-Y)
-    4, 5, 0, 1
+    // Degenerate 
+    7, 4,
+
+    // Face 4: Left (-X)
+    4, 0, 7, 3,
+
+    // Degenerate 
+    3, 2,
+
+    // Face 5: Top (+Y) 
+    3, 2, 7, 6,
+
+    // Degenerate 
+    6, 5,
+
+    // Face 6: Bottom (-Y) 
+    5, 1, 4, 0
 };
 ```
 ```c++
 inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; 
 ```
-![](images/ex7.png)
+![](images/correct_ex7.png)
 
 **Reflection:**
 After the initial attempt to render the cube using triangle strips, I noticed that some faces (top and bottom) were not visible.
@@ -310,7 +334,7 @@ void main() {
     fragColor = inColor;
 }
 ```
-![](images/ex8.png)
+![](images/correct_ex8.png)
 
 **Reflection:**
 I was able to change the number of instances to 2 in the draw call, and then use the gl_InstanceIndex.
@@ -397,7 +421,10 @@ struct ModelPushConstant {
     glm::mat4 model;
 };
 ```
-![](images/ex9.png)
+```c++
+ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f)*2.0f, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+```
+![](images/correct_ex9.png)
 
 **Reflection:**
 During this exercise, I encountered a challenge when trying to implement push constants for rendering two cubes. After following

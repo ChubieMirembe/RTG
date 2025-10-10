@@ -133,28 +133,51 @@ const std::vector<uint16_t> Quad_indices = {
 };
 
 const std::vector<Vertex> Cube_vertices = {
-    {{-0.5f, -0.5f, -0.5f}, {1,0,0}},
-    {{ 0.5f, -0.5f, -0.5f}, {0,1,0}},
-    {{ 0.5f,  0.5f, -0.5f}, {0,0,1}},
-    {{-0.5f,  0.5f, -0.5f}, {1,1,0}},
-    {{-0.5f, -0.5f,  0.5f}, {1,0,1}},
-    {{ 0.5f, -0.5f,  0.5f}, {0,1,1}},
-    {{ 0.5f,  0.5f,  0.5f}, {1,1,1}},
-    {{-0.5f,  0.5f,  0.5f}, {0,0,0}},
+
+    {{-1.0f, -1.0f, +1.0f}, {1.0f, 0.0f, 0.0f}}, // 0
+    {{+1.0f, -1.0f, +1.0f}, {0.0f, 1.0f, 0.0f}}, // 1
+    {{+1.0f, +1.0f, +1.0f}, {0.0f, 0.0f, 1.0f}}, // 2
+    {{-1.0f, +1.0f, +1.0f}, {1.0f, 1.0f, 1.0f}}, // 3
+
+    {{-1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 1.0f}}, // 4
+    {{+1.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 0.0f}}, // 5
+    {{+1.0f, +1.0f, -1.0f}, {0.0f, 1.0f, 1.0f}}, // 6
+    {{-1.0f, +1.0f, -1.0f}, {1.0f, 0.5f, 0.0f}}, // 7
 };
 
 const std::vector<uint16_t> Cube_edge_indices = {
-    0, 1, 2, 3,
-    7,
-    3, 1, 7, 5,
-    4,
-    5, 1, 4, 0,
-    2,
-    0, 2, 4, 6,
-    7,
-    6, 2, 7, 3,
-    5,
-    3, 5, 7, 4
+    // Face 1: Front (+Z) (Triangle 1: 0, 1, 3 & Triangle 2: 1, 2, 3)
+    0, 1, 3, 2,
+
+    // Degenerate Jump to Face 2 
+    2, 1,
+
+    // Face 2: Right (+X) (Triangle 3: 1, 5, 2 & Triangle 4: 5, 6, 2)
+    1, 5, 2, 6,
+
+    // Degenerate Jump to Face 3 (Back) - Jumps from 6 to 5
+    6, 5,
+
+    // Face 3: Back (-Z) (Triangle 5: 5, 4, 6 & Triangle 6: 4, 7, 6)
+    5, 4, 6, 7,
+
+    // Degenerate Jump to Face 4 (Left) - Jumps from 7 to 4
+    7, 4,
+
+    // Face 4: Left (-X) (Triangle 7: 4, 0, 7 & Triangle 8: 0, 3, 7)
+    4, 0, 7, 3,
+
+    // Degenerate Jump to Face 5 (Top) - Jumps from 3 to 2
+    3, 2,
+
+    // Face 5: Top (+Y) (Triangle 9: 3, 2, 7 & Triangle 10: 2, 6, 7)
+    3, 2, 7, 6,
+
+    // Degenerate Jump to Face 6 
+    6, 5,
+
+    // Face 6: Bottom (-Y) (Triangle 11: 5, 1, 4 & Triangle 12: 1, 0, 4)
+    5, 1, 4, 0
 };
 
 std::vector<Vertex> vertices;
@@ -1060,7 +1083,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f)*2.0f, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
