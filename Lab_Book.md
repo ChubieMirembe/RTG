@@ -297,15 +297,6 @@ vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 2, 0, 0, 
 ```
 ```c++
 void main() {
-    vec3 offset = vec3(gl_InstanceIndex * 3.0 - 1.5, 0.0, 0.0);
-    mat4 instanceModel = ubo.model * translate(mat4(1.0), offset);
-    gl_Position = ubo.proj * ubo.view * instanceModel * vec4(inPosition, 1.0);
-    fragColor = inColor;
-    gl_PointSize = 10.0;
-}
-```
-```c++
-void main() {
     // Per-instance offset along X: ..., -1.5, 1.5, 4.5, ...
     float idx = float(gl_InstanceIndex);
     vec3 offset = vec3(idx * 2.0 - 1.5, 0.0, 0.0);
@@ -327,6 +318,10 @@ I attempted to experimented with the multiplier and offset values to see how the
 So I was able to have a better understanding of how instanced drawing works in Vulkan. 
 It would be interesting to explore how to make sure that no clipping occurs when rendering multiple instances, 
 so I would like to understand how to adjust the view or projection matrices accordingly.
+By the end I understood, that this is an efficient way to limit overhead, when multiple
+instances of an object is required. Rather than calculating the vertex position for each 
+object, it can be defined once, and matrix transform will be responsible for things like
+the new objects position in space, oritentation, etc.
 
 ### EXERCISE 9: DRAWING TWO CUBES USING PUSH CONSTANTS
 #### Goal: Render two distinct wireframe cubes side-by-side using the same vertex/index buffers, but with different cube positions
@@ -409,4 +404,5 @@ During this exercise, I encountered a challenge when trying to implement push co
 the steps, I realized that I something had gone wrong because I was not seeing any cubes rendered on the screen. and the window 
 would open and close immediately. I had to roll back to my previous working version and begin the exercise again from scratch.
 I was able to successfully implement push constants and render the two cubes side by side.
-
+This exercise shares a similaraity to exercise 8 because they both use an offset to calculate 
+the new position, but it differs, because this is done with a new draw call.
