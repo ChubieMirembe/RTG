@@ -3,11 +3,11 @@
 //====================================================
 
 #define GLFW_INCLUDE_VULKAN
-#include <include/GLFW/glfw3.h>
+#include <GLFW/glfw3.h>
 
 #define GLM_FORCE_RADIANS
-#include <include/glm/glm.hpp>
-#include <include/glm/gtc/matrix_transform.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -82,87 +82,28 @@ struct Vertex {
 };
 
 struct UniformBufferObject {
+    alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
 };
 
-struct ModelPushConstant {
-    glm::mat4 model;
-};
-
 const std::vector<Vertex> Quad_vertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}}, //0
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}}, //1
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}, //2
-    {{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}}, //3
-
-   {{-0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}}, //4
-   {{0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f}}, //5
-   {{ 0.5f, 0.5f, 1.0f }, {1.0f, 0.0f, 0.0f}}, //6
-   {{-0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}}, //7
-
-   {{0.5f, -0.5f, 0.f}, {1.0f, 1.0f, 1.0f}}, //8
-   {{0.5f, 0.5f, 0.f}, {1.0f, 0.0f, 0.8f}}, //9
-   {{0.5f, 0.5f, 1.f}, {1.0f, 0.0f, 0.4f}}, //10
-   {{0.5f, -0.5f, 1.f}, {1.0f, 1.0f, 1.0f}}, //11
-
-   {{-0.5f, -0.5f, 0.f}, {1.0f, 1.0f, 1.0f}}, //12
-   {{-0.5f, 0.5f, 0.f}, {1.0f, 1.0f, 1.0f}}, //13
-   {{-0.5f, 0.5f, 1.f}, {1.0f, 1.0f, 1.0f}}, //14
-   {{-0.5f, -0.5f, 1.f}, {1.0f, 1.0f, 1.0f}}, //15
-
-   {{-0.5f, 0.5f, 0.f}, {0.f, 1.0f, 1.0f}}, //16
-   {{0.5f, 0.5f, 0.f}, {0.0f, 0.0f, 0.5f}}, //17
-   {{0.5f, 0.5f, 1.f}, {0.0f, 1.0f, 1.0f}}, //18
-   {{-0.5f, 0.5f, 1.f}, {0.0f, 0.0f, 0.5f}}, //19
-
-   {{-0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 1.0f}}, //20
-   {{0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 1.0f}}, //21
-   {{0.5f, -0.5f, 1.f}, {1.0f, 0.0f, 1.0f}}, //22
-   {{-0.5f, -0.5f, 1.f}, {1.0f, 0.0f, 1.0f}}, //23
-
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
 };
 
 const std::vector<uint16_t> Quad_indices = {
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4,
-    8, 9, 10, 10, 11, 8,
-    12, 13, 14, 14, 15, 12,
-    16, 17, 18, 18, 19, 16,
-    20, 21, 22, 22, 23, 20
-};
-
-const std::vector<Vertex> Cube_vertices = {
-    {{-0.5f, -0.5f, -0.5f}, {1,0,0}},
-    {{ 0.5f, -0.5f, -0.5f}, {0,1,0}},
-    {{ 0.5f,  0.5f, -0.5f}, {0,0,1}},
-    {{-0.5f,  0.5f, -0.5f}, {1,1,0}},
-    {{-0.5f, -0.5f,  0.5f}, {1,0,1}},
-    {{ 0.5f, -0.5f,  0.5f}, {0,1,1}},
-    {{ 0.5f,  0.5f,  0.5f}, {1,1,1}},
-    {{-0.5f,  0.5f,  0.5f}, {0,0,0}},
-};
-
-const std::vector<uint16_t> Cube_edge_indices = {
-    0, 1, 2, 3,
-    7,
-    3, 1, 7, 5,
-    4,
-    5, 1, 4, 0,
-    2,
-    0, 2, 4, 6,
-    7,
-    6, 2, 7, 3,
-    5,
-    3, 5, 7, 4
+    0, 1, 2, 2, 3, 0
 };
 
 std::vector<Vertex> vertices;
 std::vector<uint16_t> indices;
 
 void loadModel() {
-    vertices = Cube_vertices;
-    indices = Cube_edge_indices;
+    vertices = Quad_vertices;
+    indices = Quad_indices;
 }
 
 // --- Vulkan Debug Messenger ---
@@ -209,7 +150,7 @@ private:
     VkSwapchainKHR swapChain = VK_NULL_HANDLE;;
     std::vector<VkImage> swapChainImages;
     VkFormat swapChainImageFormat = VK_FORMAT_UNDEFINED;;
-    VkExtent2D swapChainExtent{ 0, 0 };
+    VkExtent2D swapChainExtent{0, 0};
     std::vector<VkImageView> swapChainImageViews;
 
     // --- Graphics Pipeline ---
@@ -632,8 +573,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE; 
 
     VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
@@ -646,10 +587,10 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_NONE;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace =  VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -673,17 +614,10 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
-    VkPushConstantRange pushConstantRange{};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(ModelPushConstant);
-
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = 1;
-    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create pipeline layout!");
@@ -1005,31 +939,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-
-    ModelPushConstant pushUBO{};
-    pushUBO.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
-    vkCmdPushConstants(
-        commandBuffer,
-        pipelineLayout,
-        VK_SHADER_STAGE_VERTEX_BIT,
-        0,
-        sizeof(ModelPushConstant),
-        &pushUBO
-    );
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 3, 0, 0, 0);
-
-    pushUBO.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    vkCmdPushConstants(
-        commandBuffer,
-        pipelineLayout,
-        VK_SHADER_STAGE_VERTEX_BIT,
-        0,
-        sizeof(ModelPushConstant),
-        &pushUBO
-    );
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 3, 0, 0, 0);
-
-    //vkCmdDraw(commandBuffer, 8, 1, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRendering(commandBuffer);
 
@@ -1060,6 +970,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
