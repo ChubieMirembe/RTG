@@ -34,22 +34,21 @@ void createGrid(int width, int depth, std::vector<Vertex>& outVertices, std::vec
 ```
 
 ```c++
-
+void loadModel() {
+    createGrid(20, 20, vertices, indices); 
+}
 ```
 
 ```c++
-
-
+ubo.view = glm::lookAt(glm::vec3(0.0f, 10.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 ```
-
-```c++
-
-```
-
-
+**Output:**
+![](images/ex1.png)
 
 **Reflection:**
-
+When I followed the implementation steps, then angle I was looking at the grid was too steep, and didn't match the one showed in the example image.
+I fixed this by changing lookat function until the output matched the example image. I also had to modify all the buffer sizes to use uint32_t instead of uint16_t, 
+as that's what the example code used for the parameters of the grid
 
 ### EXERCISE 2: CREATE A WAVY TERRAI
 #### Goal:  Modify the grid generation logic to create a simple, wavy terrain.
