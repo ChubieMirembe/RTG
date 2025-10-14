@@ -177,13 +177,15 @@ But once I understood the concept, it was straightforward to integrate it into t
 ```c++
 ```
 ```c++
-
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    inputAssembly.primitiveRestartEnable = VK_TRUE;
 ```
 
 ![](images/ex3.png)
 
 **Reflection:**
-
+changing the topology to triangle strip and enabling primitive restart was crucial for rendering the cylinder correctly. 
+as the cylinder has a lot of vertical lines, using triangle list would have required a lot of indices, making it inefficient.
 
 ### EXERCISE 4:  WIREFRAME RENDERING
 #### Goal: Refactor the procedural generation code into a reusable C++ class or namespace, similar to the GeometryGenerator provided at d3d12book/Chapter 7 Drawing in Direct3D 

@@ -232,14 +232,105 @@ static void createTerrain(
     }
 }
 
+// ----------------------------------------------------
+// Cylinder built for TRIANGLE_STRIP with primitive restart.
+// Bottom cap -> walls -> top cap in ONE vkCmdDrawIndexed.
+// Axis: +Y, centered at origin.
+// ----------------------------------------------------
+static void createCylinderStrip(
+    float radius,
+    float height,
+    uint32_t segments,                 // >= 3
+    const glm::vec3& colorBottom,
+    const glm::vec3& colorTop,
+    std::vector<Vertex>& outVertices,
+    std::vector<uint32_t>& outIndices,
+    bool addTopCap = true,
+    bool addBottomCap = true)
+{
+    outVertices.clear();
+    outIndices.clear();
+    if (segments < 3) segments = 3;
+
+    const float y0 = -0.5f * height;
+    const float y1 = 0.5f * height;
+    const float TWO_PI = 6.28318530718f;
+
+    // ---- Create ring vertices: bottom (0..segments-1), top (segments..2*segments-1)
+    outVertices.reserve(2 * segments + 2);
+    for (uint32_t i = 0; i < segments; ++i) {
+        float theta = TWO_PI * (float)i / (float)segments;
+        float c = std::cos(theta);
+        float s = std::sin(theta);
+
+        outVertices.push_back(Vertex{ glm::vec3(radius * c, y0, radius * s), colorBottom }); // bottom i
+        outVertices.push_back(Vertex{ glm::vec3(radius * c, y1, radius * s), colorTop }); // top    i
+    }
+
+    // Append centers (optional caps)
+    uint32_t bottomCenter = UINT32_MAX;
+    uint32_t topCenter = UINT32_MAX;
+    if (addBottomCap) {
+        bottomCenter = (uint32_t)outVertices.size();
+        outVertices.push_back(Vertex{ glm::vec3(0, y0, 0), colorBottom });
+    }
+    if (addTopCap) {
+        topCenter = (uint32_t)outVertices.size();
+        outVertices.push_back(Vertex{ glm::vec3(0, y1, 0), colorTop });
+    }
+
+    // With the following correct lambda definition:
+    auto idxB = [&](uint32_t i) { return 2u * (i % segments) + 0u; }; // bottom ring vertex index
+    auto idxT = [&](uint32_t i) { return 2u * (i % segments) + 1u; }; // top ring vertex index
+    const uint32_t RESTART = 0xFFFFFFFFu;
+
+    // ---- Bottom cap as TRIANGLE_STRIP (fan-like sequence): Cb, b0, b1, Cb, b1, b2, ...
+    if (addBottomCap) {
+        outIndices.push_back(bottomCenter);
+        outIndices.push_back(idxB(0));
+        outIndices.push_back(idxB(1));
+        for (uint32_t i = 1; i < segments; ++i) {
+            outIndices.push_back(bottomCenter);
+            outIndices.push_back(idxB(i));
+            outIndices.push_back(idxB((i + 1) % segments));
+        }
+        outIndices.push_back(RESTART);
+    }
+
+    // ---- Walls as one TRIANGLE_STRIP: b0, t0, b1, t1, ..., bN, tN, b0, t0  (close seam)
+    for (uint32_t i = 0; i <= segments; ++i) {
+        outIndices.push_back(idxB(i % segments));
+        outIndices.push_back(idxT(i % segments));
+    }
+    // Close the seam by repeating the first pair
+    outIndices.push_back(idxB(0));
+    outIndices.push_back(idxT(0));
+    outIndices.push_back(RESTART);
+
+    // ---- Top cap as TRIANGLE_STRIP: Ct, t0, t1, Ct, t1, t2, ...
+    if (addTopCap) {
+        outIndices.push_back(topCenter);
+        outIndices.push_back(idxT(0));
+        outIndices.push_back(idxT(1));
+        for (uint32_t i = 1; i < segments; ++i) {
+            outIndices.push_back(topCenter);
+            outIndices.push_back(idxT(i));
+            outIndices.push_back(idxT((i + 1) % segments));
+        }
+        outIndices.push_back(RESTART);
+    }
+}
+
 void loadModel() {
-    createTerrain(
-        200, 200,            // width, depth
-        0.1f,                // cell size
-        1.2f,                // amplitude (height scale)
-        1.5f, 1.5f,          // frequency (try 1.0–3.0 range)
-        0.25f, 0.25f,        // scaleX/Z (stretch)
-        vertices, indices
+    createCylinderStrip(
+        /*radius   */ 1.0f,
+        /*height   */ 2.0f,
+        /*segments */ 64,
+        /*colorBot */ glm::vec3(1.0f, 1.0f, 1.0f),
+        /*colorTop */ glm::vec3(1.0f, 1.0f, 1.0f),
+        vertices, indices,
+        /*addTopCap   */ true,
+        /*addBottomCap*/ true
     );
 }
 
@@ -712,8 +803,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    inputAssembly.primitiveRestartEnable = VK_TRUE;
 
     VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
