@@ -3,6 +3,8 @@
 //====================================================
 
 #define GLFW_INCLUDE_VULKAN
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+
 #include <GLFW/glfw3.h>
 
 #define GLM_FORCE_RADIANS
@@ -126,9 +128,67 @@ void createGrid(int width, int depth, std::vector<Vertex>& outVertices, std::vec
     }
 }
 
+// --- New: wavy terrain on XZ with height in Y ---
+static void createTerrain(
+    int width, int depth,
+    float cellSize,
+    float amplitude, float freqX, float freqZ,
+    float scaleX, float scaleZ,
+    std::vector<Vertex>& outVertices,
+    std::vector<uint32_t>& outIndices)
+{
+    outVertices.clear();
+    outIndices.clear();
+    outVertices.reserve((width + 1) * (depth + 1));
+    outIndices.reserve(width * depth * 6);
+
+    const float halfW = 0.5f * width * cellSize;
+    const float halfD = 0.5f * depth * cellSize;
+
+    // vertices
+    for (int j = 0; j <= depth; ++j) {
+        for (int i = 0; i <= width; ++i) {
+            float x = -halfW + i * cellSize;
+            float z = -halfD + j * cellSize;
+
+            float Xs = (i * cellSize) * scaleX;
+            float Zs = (j * cellSize) * scaleZ;
+            float y = amplitude * std::sin(freqX * Xs) * std::cos(freqZ * Zs);
+
+            outVertices.push_back({ glm::vec3(x, y, z), glm::vec3(1.0f) });
+        }
+    }
+
+    // indices (same pattern as grid: two tris per quad)
+    auto idx = [&](int ii, int jj) { return (uint32_t)(jj * (width + 1) + ii); };
+    for (int j = 0; j < depth; ++j) {
+        for (int i = 0; i < width; ++i) {
+            uint32_t i0 = idx(i, j);
+            uint32_t i1 = idx(i + 1, j);
+            uint32_t i2 = idx(i + 1, j + 1);
+            uint32_t i3 = idx(i, j + 1);
+            outIndices.insert(outIndices.end(), { i0, i1, i2, i0, i2, i3 });
+        }
+    }
+}
+
+
 
 void loadModel() {
-    createGrid(20, 20, vertices, indices); 
+    // width, depth, cellSize, amplitude, freqX, freqZ, scaleX, scaleZ
+    // Before (example):
+// createTerrain(200, 200, 0.1f, 0.5f, 2.0f, 1.7f, 0.15f, 0.15f, vertices, indices);
+
+// After: higher amplitude + more ripples
+    createTerrain(
+        200, 200,            // width, depth
+        0.1f,                // cellSize
+        1.6f,                // AMPLITUDE  ? (was ~0.5f)
+        2.8f, 2.3f,          // freqX, freqZ ? (was ~2.0f, 1.7f)
+        0.25f, 0.25f,        // scaleX, scaleZ ? (was ~0.15f, 0.15f)
+        vertices, indices
+    );
+
 }
 
 
@@ -996,11 +1056,24 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.model = glm::mat4(1.0f); // Identity matrix — no transformation
-    ubo.view = glm::lookAt(glm::vec3(0.0f, 10.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.8f, 1.0f));
+
+    // 45° elevation means y equals the ground-plane radius.
+// Choose r = 8.0: planar radius = y = r / sqrt(2) ? 5.657
+    ubo.view = glm::lookAt(
+        glm::vec3(4.0f, 5.657f, 4.0f),  // azimuth 45° ? x ? z
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f)
+    );
+
+    // Keep perspective; a slightly narrower FOV helps
+    ubo.proj = glm::perspective(glm::radians(35.0f),
+        swapChainExtent.width / (float)swapChainExtent.height,
+        0.1f, 100.0f);
     ubo.proj[1][1] *= -1;
+
+
+
 
 
 
