@@ -128,15 +128,11 @@ void createGrid(int width, int depth, std::vector<Vertex>& outVertices, std::vec
     }
 }
 
-// =======================================================
-// Simple 2D Perlin Noise + Terrain Generator
-// =======================================================
-
-// --- Perlin noise helper functions ---
+// Perlin noise helper functions
 float fade(float t) { return t * t * t * (t * (t * 6 - 15) + 10); }
 float lerp(float a, float b, float t) { return a + t * (b - a); }
 float grad(int hash, float x, float y) {
-    int h = hash & 7; // 8 gradient directions
+    int h = hash & 7; 
     float u = h < 4 ? x : y;
     float v = h < 4 ? y : x;
     return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
@@ -187,9 +183,7 @@ float perlin(float x, float y) {
         v);
 }
 
-// =======================================================
 // Terrain generator using Perlin noise
-// =======================================================
 static void createTerrain(
     int width, int depth,
     float cellSize,
@@ -214,18 +208,18 @@ static void createTerrain(
             float Xs = (i * cellSize) * scaleX;
             float Zs = (j * cellSize) * scaleZ;
 
-            // --- Perlin noise-based height ---
+            // Perlin noise-based height
             float y =
                 amplitude * (0.6f * perlin(Xs * freqX, Zs * freqZ)
                     + 0.3f * perlin(Xs * freqX * 2.0f, Zs * freqZ * 2.0f)
                     + 0.1f * perlin(Xs * freqX * 4.0f, Zs * freqZ * 4.0f));
 
-            // Make sure the color is red for the terrain lines
+            
             outVertices.push_back({ glm::vec3(x, y, z), glm::vec3(1.0f, 1.0f, 1.0f) });
         }
     }
 
-    // --- Index buffer generation (two triangles per quad) ---
+    // Index buffer generation (two triangles per quad)
     auto idx = [&](int ii, int jj) { return (uint32_t)(jj * (width + 1) + ii); };
     for (int j = 0; j < depth; ++j) {
         for (int i = 0; i < width; ++i) {
