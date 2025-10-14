@@ -232,105 +232,134 @@ static void createTerrain(
     }
 }
 
-// ----------------------------------------------------
-// Cylinder built for TRIANGLE_STRIP with primitive restart.
-// Bottom cap -> walls -> top cap in ONE vkCmdDrawIndexed.
-// Axis: +Y, centered at origin.
-// ----------------------------------------------------
-static void createCylinderStrip(
-    float radius,
+
+// Detailed cylinder using multiple triangle strips + primitive restart.
+// Params:
+//  segments  : slices around Y
+//  stacks    : vertical subdivisions of the side (>=1)
+//  capRings  : number of radial rings on each cap (>=1, outer ring included)
+// Vertex layout: side rings first (stacks+1)*segments,
+// then top cap rings (center + capRings rings),
+// then bottom cap rings (center + capRings rings).
+static void createCylinderStripDetailed(
+    float radiusTop,
+    float radiusBottom,
     float height,
-    uint32_t segments,                 // >= 3
-    const glm::vec3& colorBottom,
+    uint32_t segments,
+    uint32_t stacks,
+    uint32_t capRings,
     const glm::vec3& colorTop,
+    const glm::vec3& colorBottom,
     std::vector<Vertex>& outVertices,
-    std::vector<uint32_t>& outIndices,
-    bool addTopCap = true,
-    bool addBottomCap = true)
+    std::vector<uint32_t>& outIndices)
 {
+    if (segments < 3) segments = 3;
+    if (stacks   < 1) stacks   = 1;
+    if (capRings < 1) capRings = 1;
+
     outVertices.clear();
     outIndices.clear();
-    if (segments < 3) segments = 3;
 
     const float y0 = -0.5f * height;
     const float y1 = 0.5f * height;
     const float TWO_PI = 6.28318530718f;
-
-    // ---- Create ring vertices: bottom (0..segments-1), top (segments..2*segments-1)
-    outVertices.reserve(2 * segments + 2);
-    for (uint32_t i = 0; i < segments; ++i) {
-        float theta = TWO_PI * (float)i / (float)segments;
-        float c = std::cos(theta);
-        float s = std::sin(theta);
-
-        outVertices.push_back(Vertex{ glm::vec3(radius * c, y0, radius * s), colorBottom }); // bottom i
-        outVertices.push_back(Vertex{ glm::vec3(radius * c, y1, radius * s), colorTop }); // top    i
-    }
-
-    // Append centers (optional caps)
-    uint32_t bottomCenter = UINT32_MAX;
-    uint32_t topCenter = UINT32_MAX;
-    if (addBottomCap) {
-        bottomCenter = (uint32_t)outVertices.size();
-        outVertices.push_back(Vertex{ glm::vec3(0, y0, 0), colorBottom });
-    }
-    if (addTopCap) {
-        topCenter = (uint32_t)outVertices.size();
-        outVertices.push_back(Vertex{ glm::vec3(0, y1, 0), colorTop });
-    }
-
-    // With the following correct lambda definition:
-    auto idxB = [&](uint32_t i) { return 2u * (i % segments) + 0u; }; // bottom ring vertex index
-    auto idxT = [&](uint32_t i) { return 2u * (i % segments) + 1u; }; // top ring vertex index
     const uint32_t RESTART = 0xFFFFFFFFu;
 
-    // ---- Bottom cap as TRIANGLE_STRIP (fan-like sequence): Cb, b0, b1, Cb, b1, b2, ...
-    if (addBottomCap) {
-        outIndices.push_back(bottomCenter);
-        outIndices.push_back(idxB(0));
-        outIndices.push_back(idxB(1));
-        for (uint32_t i = 1; i < segments; ++i) {
-            outIndices.push_back(bottomCenter);
-            outIndices.push_back(idxB(i));
-            outIndices.push_back(idxB((i + 1) % segments));
+    auto angle = [&](uint32_t i){ return TWO_PI * (float)i / (float)segments; };
+
+    // ---- Side rings (stacks+1)
+    // Each ring: segments vertices
+    for (uint32_t s = 0; s <= stacks; ++s) {
+        float t = float(s) / float(stacks);
+        float y  = glm::mix(y0, y1, t);
+        float r  = glm::mix(radiusBottom, radiusTop, t);
+        glm::vec3 col = glm::mix(colorBottom, colorTop, t);
+        for (uint32_t i = 0; i < segments; ++i) {
+            float a = angle(i);
+            outVertices.push_back({ glm::vec3(r * std::cos(a), y, r * std::sin(a)), col });
+        }
+    }
+
+    uint32_t sideBase     = 0;
+    uint32_t sideRingCount= stacks + 1;
+    uint32_t sideVertCount= sideRingCount * segments;
+
+    // ---- Top cap rings (center + capRings rings)
+    uint32_t topCapBase = sideVertCount;
+    // center replicated 'segments' times so it can act like a degenerate ring enabling a clean strip
+    for (uint32_t i = 0; i < segments; ++i) {
+        outVertices.push_back({ glm::vec3(0.f, y1, 0.f), colorTop });
+    }
+    for (uint32_t ring = 1; ring <= capRings; ++ring) {
+        float rr = radiusTop * (float(ring) / float(capRings));
+        for (uint32_t i = 0; i < segments; ++i) {
+            float a = angle(i);
+            outVertices.push_back({ glm::vec3(rr * std::cos(a), y1, rr * std::sin(a)), colorTop });
+        }
+    }
+    uint32_t topRingCount = capRings + 1; // including degenerate center ring
+    uint32_t topVertCount = topRingCount * segments;
+
+    // ---- Bottom cap rings
+    uint32_t bottomCapBase = sideVertCount + topVertCount;
+    for (uint32_t i = 0; i < segments; ++i) {
+        outVertices.push_back({ glm::vec3(0.f, y0, 0.f), colorBottom });
+    }
+    for (uint32_t ring = 1; ring <= capRings; ++ring) {
+        float rr = radiusBottom * (float(ring) / float(capRings));
+        for (uint32_t i = 0; i < segments; ++i) {
+            float a = angle(i);
+            outVertices.push_back({ glm::vec3(rr * std::cos(a), y0, rr * std::sin(a)), colorBottom });
+        }
+    }
+    uint32_t bottomRingCount = capRings + 1;
+    // uint32_t bottomVertCount = bottomRingCount * segments;
+
+    // Helpers to index a ring vertex
+    auto ringVertex = [&](uint32_t base, uint32_t ring, uint32_t slice){
+        return base + ring * segments + (slice % segments);
+    };
+
+    // ---- Bottom cap bands (from center ring 0 outwards)
+    for (uint32_t ring = 0; ring < bottomRingCount - 1; ++ring) {
+        for (uint32_t i = 0; i <= segments; ++i) {
+            outIndices.push_back(ringVertex(bottomCapBase, ring,     i));
+            outIndices.push_back(ringVertex(bottomCapBase, ring+1,   i));
         }
         outIndices.push_back(RESTART);
     }
 
-    // ---- Walls as one TRIANGLE_STRIP: b0, t0, b1, t1, ..., bN, tN, b0, t0  (close seam)
-    for (uint32_t i = 0; i <= segments; ++i) {
-        outIndices.push_back(idxB(i % segments));
-        outIndices.push_back(idxT(i % segments));
+    // ---- Side bands (stack strips)
+    for (uint32_t s = 0; s < stacks; ++s) {
+        for (uint32_t i = 0; i <= segments; ++i) {
+            outIndices.push_back(ringVertex(sideBase, s,     i));
+            outIndices.push_back(ringVertex(sideBase, s+1,   i));
+        }
+        outIndices.push_back(RESTART);
     }
-    // Close the seam by repeating the first pair
-    outIndices.push_back(idxB(0));
-    outIndices.push_back(idxT(0));
-    outIndices.push_back(RESTART);
 
-    // ---- Top cap as TRIANGLE_STRIP: Ct, t0, t1, Ct, t1, t2, ...
-    if (addTopCap) {
-        outIndices.push_back(topCenter);
-        outIndices.push_back(idxT(0));
-        outIndices.push_back(idxT(1));
-        for (uint32_t i = 1; i < segments; ++i) {
-            outIndices.push_back(topCenter);
-            outIndices.push_back(idxT(i));
-            outIndices.push_back(idxT((i + 1) % segments));
+    // ---- Top cap bands
+    for (uint32_t ring = 0; ring < topRingCount - 1; ++ring) {
+        for (uint32_t i = 0; i <= segments; ++i) {
+            outIndices.push_back(ringVertex(topCapBase, ring,     i));
+            outIndices.push_back(ringVertex(topCapBase, ring+1,   i));
         }
         outIndices.push_back(RESTART);
     }
 }
 
+// Replace loadModel to use the detailed multi-strip version.
 void loadModel() {
-    createCylinderStrip(
-        /*radius   */ 1.0f,
-        /*height   */ 2.0f,
-        /*segments */ 64,
-        /*colorBot */ glm::vec3(1.0f, 1.0f, 1.0f),
-        /*colorTop */ glm::vec3(1.0f, 1.0f, 1.0f),
-        vertices, indices,
-        /*addTopCap   */ true,
-        /*addBottomCap*/ true
+    createCylinderStripDetailed(
+        /*radiusTop    */ 1.0f,
+        /*radiusBottom */ 1.0f,
+        /*height       */ 2.0f,
+        /*segments     */ 36,   // around
+        /*stacks       */ 24,   // vertical subdivisions
+        /*capRings     */ 12,   // radial rings on caps
+        /*colorTop     */ glm::vec3(1,0,0),
+        /*colorBottom  */ glm::vec3(1,0,0),
+        vertices, indices
     );
 }
 
