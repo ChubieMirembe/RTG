@@ -175,14 +175,93 @@ But once I understood the concept, it was straightforward to integrate it into t
 **Solution:**
 
 ```c++
+static void createCylinder(
+    float radius,
+    float height,
+    uint32_t segments,
+    const glm::vec3& colorBottom,
+    const glm::vec3& colorTop,
+    std::vector<Vertex>& outVertices,
+    std::vector<uint32_t>& outIndices)
+{
+    if (segments < 3) segments = 3;
+
+    outVertices.clear();
+    outIndices.clear();
+
+    const float y0 = -0.5f * height;
+    const float y1 = 0.5f * height;
+    const float TWO_PI = 6.28318530718f;
+    const uint32_t RESTART = 0xFFFFFFFFu;
+
+    // Interleave bottom/top ring vertices 
+    for (uint32_t i = 0; i < segments; ++i) {
+        float a = TWO_PI * (float)i / (float)segments;
+        float c = std::cos(a), s = std::sin(a);
+        outVertices.push_back({ glm::vec3(radius * c, y0, radius * s), colorBottom });
+        outVertices.push_back({ glm::vec3(radius * c, y1, radius * s), colorTop });
+    }
+
+    // Add centers
+    uint32_t bottomCenter = UINT32_MAX;
+    uint32_t topCenter = UINT32_MAX;
+
+    bottomCenter = (uint32_t)outVertices.size();
+    outVertices.push_back({ glm::vec3(0.f, y0, 0.f), colorBottom });
+
+
+    topCenter = (uint32_t)outVertices.size();
+    outVertices.push_back({ glm::vec3(0.f, y1, 0.f), colorTop });
+
+    auto idxB = [&](uint32_t i) { return 2u * (i % segments) + 0u; };
+    auto idxT = [&](uint32_t i) { return 2u * (i % segments) + 1u; };
+
+
+    for (uint32_t i = 0; i < segments; ++i) {
+        outIndices.push_back(bottomCenter);
+        outIndices.push_back(idxB(i));
+        outIndices.push_back(idxB(i + 1));
+        outIndices.push_back(RESTART);
+    }
+
+    // Wall
+    for (uint32_t i = 0; i <= segments; ++i) {
+        outIndices.push_back(idxB(i));
+        outIndices.push_back(idxT(i));
+    }
+    outIndices.push_back(RESTART);
+
+    for (uint32_t i = 0; i < segments; ++i) {
+        outIndices.push_back(topCenter);
+        outIndices.push_back(idxT(i));
+        outIndices.push_back(idxT(i + 1));
+        outIndices.push_back(RESTART);
+    }
+}
+
+void loadModel() {
+    createCylinder(
+        1.0f,
+        2.0f,
+        6,
+        glm::vec3(1, 1, 1),
+         glm::vec3(1, 1, 1),
+        vertices, indices
+    );
+}
 ```
 ```c++
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
     inputAssembly.primitiveRestartEnable = VK_TRUE;
 ```
 
-![](images/ex3.png)
+**Output:**
+1. Solid cylinder
+![](images/ex3_solid.png)
 
+2. Wireframe cylinder
+![](images/ex3_wireframe.png)
+1. 
 **Reflection:**
 changing the topology to triangle strip and enabling primitive restart was crucial for rendering the cylinder correctly. 
 as the cylinder has a lot of vertical lines, using triangle list would have required a lot of indices, making it inefficient.
