@@ -221,7 +221,7 @@ static void createTerrain(
                     + 0.1f * perlin(Xs * freqX * 4.0f, Zs * freqZ * 4.0f));
 
             // Make sure the color is red for the terrain lines
-            outVertices.push_back({ glm::vec3(x, y, z), glm::vec3(1.0f, 0.0f, 0.0f) });
+            outVertices.push_back({ glm::vec3(x, y, z), glm::vec3(1.0f, 1.0f, 1.0f) });
         }
     }
 
@@ -1116,16 +1116,13 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
 
     UniformBufferObject ubo{};
     ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.8f, 1.0f));
-
-    // 45° elevation means y equals the ground-plane radius.
-// Choose r = 8.0: planar radius = y = r / sqrt(2) ? 5.657
     ubo.view = glm::lookAt(
-        glm::vec3(4.0f, 5.657f, 4.0f),  // azimuth 45° ? x ? z
-        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(4.0f, 8.0f, 8.0f),  
+        glm::vec3(0.0f, 1.0f, 2.0f),
         glm::vec3(0.0f, 1.0f, 0.0f)
     );
 
-    // Keep perspective; a slightly narrower FOV helps
+
     ubo.proj = glm::perspective(glm::radians(35.0f),
         swapChainExtent.width / (float)swapChainExtent.height,
         0.1f, 100.0f);
