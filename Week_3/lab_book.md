@@ -7,6 +7,29 @@
 
 **Solution:**
 ```c++
+void createGrid(int width, int depth, std::vector<Vertex>& outVertices, std::vector<uint32_t>& outIndices) {
+    for (int z = 0; z <= depth; ++z) {
+        for (int x = 0; x <= width; ++x) {
+            Vertex v;
+            v.pos = glm::vec3(x - width / 2.0f, 0.0f, z - depth / 2.0f);
+            v.color = glm::vec3(1.0f); // white
+            outVertices.push_back(v);
+        }
+    }
+
+    for (int z = 0; z < depth; ++z) {
+        for (int x = 0; x < width; ++x) {
+            int start = z * (width + 1) + x;
+            outIndices.push_back(start);
+            outIndices.push_back(start + 1);
+            outIndices.push_back(start + width + 1);
+
+            outIndices.push_back(start + 1);
+            outIndices.push_back(start + width + 2);
+            outIndices.push_back(start + width + 1);
+        }
+    }
+}
 
 ```
 

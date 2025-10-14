@@ -99,12 +99,38 @@ const std::vector<uint16_t> Quad_indices = {
 };
 
 std::vector<Vertex> vertices;
-std::vector<uint16_t> indices;
+std::vector<uint32_t> indices;
+
+// The create grid function
+void createGrid(int width, int depth, std::vector<Vertex>& outVertices, std::vector<uint32_t>& outIndices) {
+    for (int z = 0; z <= depth; ++z) {
+        for (int x = 0; x <= width; ++x) {
+            Vertex v;
+            v.pos = glm::vec3(x - width / 2.0f, 0.0f, z - depth / 2.0f);
+            v.color = glm::vec3(1.0f); // white
+            outVertices.push_back(v);
+        }
+    }
+
+    for (int z = 0; z < depth; ++z) {
+        for (int x = 0; x < width; ++x) {
+            int start = z * (width + 1) + x;
+            outIndices.push_back(start);
+            outIndices.push_back(start + 1);
+            outIndices.push_back(start + width + 1);
+
+            outIndices.push_back(start + 1);
+            outIndices.push_back(start + width + 2);
+            outIndices.push_back(start + width + 1);
+        }
+    }
+}
+
 
 void loadModel() {
-    vertices = Quad_vertices;
-    indices = Quad_indices;
+    createGrid(20, 20, vertices, indices); // You can change 20x20 to any size
 }
+
 
 // --- Vulkan Debug Messenger ---
 
@@ -587,7 +613,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -970,10 +996,13 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::mat4(1.0f); // Identity matrix — no transformation
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
+
+
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
