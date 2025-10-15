@@ -120,8 +120,6 @@ static void createTerrain(
     std::vector<Vertex>& outVertices,
     std::vector<uint32_t>& outIndices)
 {
-    outVertices.clear();
-    outIndices.clear();
     outVertices.reserve((width + 1) * (depth + 1));
     outIndices.reserve(width * depth * 6);
 
@@ -184,11 +182,6 @@ static void createCylinder(
     std::vector<Vertex>& outVertices,
     std::vector<uint32_t>& outIndices)
 {
-    if (segments < 3) segments = 3;
-
-    outVertices.clear();
-    outIndices.clear();
-
     const float y0 = -0.5f * height;
     const float y1 = 0.5f * height;
     const float TWO_PI = 6.28318530718f;
@@ -238,17 +231,6 @@ static void createCylinder(
         outIndices.push_back(RESTART);
     }
 }
-
-void loadModel() {
-    createCylinder(
-        1.0f,
-        2.0f,
-        6,
-        glm::vec3(1, 1, 1),
-         glm::vec3(1, 1, 1),
-        vertices, indices
-    );
-}
 ```
 ```c++
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
@@ -261,10 +243,18 @@ void loadModel() {
 
 2. Wireframe cylinder
 ![](images/ex3_wireframe.png)
-1. 
+
 **Reflection:**
 changing the topology to triangle strip and enabling primitive restart was crucial for rendering the cylinder correctly. 
 as the cylinder has a lot of vertical lines, using triangle list would have required a lot of indices, making it inefficient.
+At first my understanding was I had to create individual layers for the cylinder and place them on top of each other,
+but upon further exploration I found out that I just needed one triangle strip which would wrap around back to the starting
+index. The next breakthrough was realising I can just repeat the same process for the top and bottom faces of the cylinder.
+All I now needed was a center vertex for both the top and bottom faces, and connect them to the respective ring of vertices.
+
+**Question:**
+I saw you call the "RESTART INDEX" without enabling it and you mentioned you wanted us to use this in our function,
+but all my research stated, I had to set that value based on the VkIndexType being used.
 
 ### EXERCISE 4:  WIREFRAME RENDERING
 #### Goal: Refactor the procedural generation code into a reusable C++ class or namespace, similar to the GeometryGenerator provided at d3d12book/Chapter 7 Drawing in Direct3D 
