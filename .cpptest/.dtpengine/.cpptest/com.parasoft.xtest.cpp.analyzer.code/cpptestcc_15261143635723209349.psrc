@@ -1,0 +1,61 @@
+codewizard.ltm bb1b09
+cpptestcc.compilerCfgFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\etc\compilers\vc_14_3-64\cpp.psrc
+cpptestcc.workspace C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine
+cpptestcc.runCoverageAnalysis off
+cpptestcc.runStaticAnalysis on
+cpptestcc.runOriginalCommand off
+codewizard.performanceShortLog C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.analyzer.code\d\9\2\863ea\0\rules.perf
+codewizard.suppressFile +*
+codewizard.suppressFile -C:\Users\984381\source\repos\ChubieMirembe\RTG\Lab_Tutorial_Template.cpp
+ppro.headerSequenceFile C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.ipro\d\9\2\863ea\0\output.ipro
+codewizard.headerSequenceFile C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.ipro\d\9\2\863ea\0\output.ipro
+cpptestcc.runIpro off
+cpptestcc.runCwc on
+pscom.tmpDir C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.analyzer.code\d\9\2\863ea\0\tmp
+codewizard.noMacroSuppressionsForRuleId INTERNAL-METRICS-CC
+codewizard.noMacroSuppressionsForRuleId INTERNAL-METRICS-FUNCTIONS2
+codewizard.noMacroSuppressionsForRuleId INTERNAL-METRICS-LINES_TYPES
+codewizard.noMacroSuppressionsForRuleId INTERNAL-METRICS-METHODS2
+codewizard.noMacroSuppressionsForRuleId INTERNAL-METRICS-NBD
+codewizard.noMacroSuppressionsForRuleId INTERNAL-METRICS-TYPES
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin_metrics\INTERNAL-METRICS\INTERNAL-METRICS-CC.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin_metrics\INTERNAL-METRICS\INTERNAL-METRICS-FUNCTIONS2.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin_metrics\INTERNAL-METRICS\INTERNAL-METRICS-LINES_TYPES.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin_metrics\INTERNAL-METRICS\INTERNAL-METRICS-METHODS2.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin_metrics\INTERNAL-METRICS\INTERNAL-METRICS-NBD.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin_metrics\INTERNAL-METRICS\INTERNAL-METRICS-TYPES.rule
+codewizard.reportFileCustom INTERNAL-METRICS-*:C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.analyzer.metrics\d\9\2\863ea\0\output.cwc
+codewizard.iLCodeOutputFile C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.dupcode\d\9\2\863ea\0\tokens.data
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\CODSTA-CPP\CODSTA-CPP-04.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\CODSTA\CODSTA-147.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\CODSTA\CODSTA-148.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\CODSTA\CODSTA-44.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\CODSTA\CODSTA-82.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\EXCEPT\EXCEPT-02.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\EXCEPT\EXCEPT-03.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\INIT\INIT-06.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\MISRA2004\MISRA2004-13_3.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\MISRA2004\MISRA2004-16_8.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\MISRA2004\MISRA2004-17_6_a.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\MRM\MRM-08.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\MRM\MRM-35.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\MRM\MRM-36.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\MRM\MRM-37.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\MRM\MRM-38.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\MRM\MRM-51.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\OOP\OOP-03.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\OOP\OOP-16.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\OOP\OOP-23.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\OPT\OPT-14.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\PB\PB-13.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\PB\PB-21.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\PB\PB-54.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\PB\PB-55.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\PB\PB-60.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\PB\PB-61.rule
+codewizard.ruleFile C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\dtp\rules\builtin\en\PB\PB-68.rule
+codewizard.reportFile C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.staticanalyzer\d\9\2\863ea\0\output.cwc
+codewizard.setupProblemsOutput C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.staticanalyzer\d\9\2\863ea\0\problems.json
+codewizard.pproDataFile C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.ppro\d\9\2\863ea\0\output.ppro
+ppro.outputFile C:\Users\984381\source\repos\ChubieMirembe\RTG\.cpptest\.dtpengine\.cpptest\com.parasoft.xtest.cpp.ppro\d\9\2\863ea\0\output.ppro
+cpptestcc.runPpro on

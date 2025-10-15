@@ -1,0 +1,6 @@
+fileName=C:\Users\984381\source\repos\ChubieMirembe\RTG\Lab_Tutorial_Template.cpp
+isCpp=
+compilerOpts=-I"C:\Program Files\Parasoft\C++test for Visual Studio (x86_64)\10.7\engine\runtime\include" /ZI /W3 /Od /EHsc /RTC1 /MDd /fp:precise /Gd /GS /I"C:\VulkanSDK\1.4.313.2\Include" /I"..\GLFW\include" /I"C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\include" /I"C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLM\include" /I"..\GLFW\lib-vc2022" /Gm- /D"WIN32" /D"_DEBUG" /D"_CONSOLE" /D"_LIB" /D"_UNICODE" /D"UNICODE" /Zc:wchar_t /Zc:forScope /Zc:inline /WX- /nologo /FC /diagnostics:column /std:c++20 /experimental:module /JMC -DPARASOFT_CPPTEST -I.
+compilerId=vc_14_3-64
+workingDir=C:\Users\984381\source\repos\ChubieMirembe\RTG\
+advancedOptionsHash=0
