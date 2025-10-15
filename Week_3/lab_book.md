@@ -263,7 +263,7 @@ index. The next breakthrough was realising I can just repeat the same process fo
 All I now needed was a center vertex for both the top and bottom faces, and connect them to the respective ring of vertices.
 
 **Question:**
-I saw you call the "RESTART INDEX" without enabling it and you mentioned you wanted us to use this in our function,
+I saw you call the "RESTART INDEX" without enabling it in the lecture and and you mentioned you wanted us to use this in our function,
 but all my research stated, I had to set that value based on the VkIndexType being used.
 
 
