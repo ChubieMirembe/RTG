@@ -24,6 +24,8 @@
 #include <array>
 #include <optional>
 #include <set>
+#include "ProcGeometry.hpp"   // <-- add this at the top, after glm includes
+using ProcGeometry::Mesh;
 
 // --- Configuration ---
 const uint32_t WIDTH = 800;
@@ -61,27 +63,21 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
-// --- Vertex Data ---
 
-struct Vertex {
-    glm::vec3 pos;
-    glm::vec3 color;
+static VkVertexInputBindingDescription getBindingDescription() {
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(Vertex);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    return bindingDescription;
+}
 
-    static VkVertexInputBindingDescription getBindingDescription() {
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Vertex);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-        return bindingDescription;
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
-        attributeDescriptions[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos) };
-        attributeDescriptions[1] = { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color) };
-        return attributeDescriptions;
-    }
-};
+static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
+    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+    attributeDescriptions[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos) };
+    attributeDescriptions[1] = { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color) };
+    return attributeDescriptions;
+}
 
 struct UniformBufferObject {
     alignas(16) glm::mat4 model;
@@ -89,224 +85,74 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
-const std::vector<Vertex> Quad_vertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
-};
+// Uses the template's global containers.
+// If you previously had "extern", keep them as real definitions in ONE .cpp only.
+extern std::vector<Vertex>   vertices;
+extern std::vector<uint32_t> indices;
 
-const std::vector<uint16_t> Quad_indices = {
-    0, 1, 2, 2, 3, 0
-};
+// Your existing Perlin function is used to make terrain height.
+// (If it lives in another TU, just keep the declaration here.)
+float perlin(float, float);
 
-std::vector<Vertex> vertices;
-std::vector<uint32_t> indices;
+// Simple wrapper matching your earlier terrain scale
+static float terrainHeight(float x, float z)
+{
+    const float amplitude = 0.6f;
+    const float freqX = 0.15f;
+    const float freqZ = 0.15f;
 
-// The create grid function
-void createGrid(int width, int depth, std::vector<Vertex>& outVertices, std::vector<uint32_t>& outIndices) {
-    for (int z = 0; z <= depth; ++z) {
-        for (int x = 0; x <= width; ++x) {
-            Vertex v;
-            v.pos = glm::vec3(x - width / 2.0f, 0.0f, z - depth / 2.0f);
-            v.color = glm::vec3(1.0f); // white
-            outVertices.push_back(v);
-        }
-    }
-
-    for (int z = 0; z < depth; ++z) {
-        for (int x = 0; x < width; ++x) {
-            int start = z * (width + 1) + x;
-            outIndices.push_back(start);
-            outIndices.push_back(start + 1);
-            outIndices.push_back(start + width + 1);
-
-            outIndices.push_back(start + 1);
-            outIndices.push_back(start + width + 2);
-            outIndices.push_back(start + width + 1);
-        }
-    }
+    float y = amplitude * (
+        0.6f * perlin(x * freqX, z * freqZ) +
+        0.3f * perlin(x * freqX * 2.0f, z * freqZ * 2.0f) +
+        0.1f * perlin(x * freqX * 4.0f, z * freqZ * 4.0f)
+        );
+    return y;
 }
 
-// Perlin noise helper functions
-float fade(float t) { return t * t * t * (t * (t * 6 - 15) + 10); }
-float lerp(float a, float b, float t) { return a + t * (b - a); }
-float grad(int hash, float x, float y) {
-    int h = hash & 7; 
-    float u = h < 4 ? x : y;
-    float v = h < 4 ? y : x;
-    return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
-}
+void loadModel()
+{
+    // ??? Exercise 4: use reusable generator to build multiple meshes ???
+    vertices.clear();
+    indices.clear();
 
-float perlin(float x, float y) {
-    static int p[512];
-    static bool initialized = false;
-    if (!initialized) {
-        // Standard permutation table
-        int permutation[256] = {
-            151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,
-            140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,
-            247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,
-            57,177,33,88,237,149,56,87,174,20,125,136,171,168,68,175,
-            74,165,71,134,139,48,27,166,77,146,158,231,83,111,229,122,
-            60,211,133,230,220,105,92,41,55,46,245,40,244,102,143,54,
-            65,25,63,161,1,216,80,73,209,76,132,187,208,89,18,169,
-            200,196,135,130,116,188,159,86,164,100,109,198,173,186,3,64,
-            52,217,226,250,124,123,5,202,38,147,118,126,255,82,85,212,
-            207,206,59,227,47,16,58,17,182,189,28,42,223,183,170,213,
-            119,248,152,2,44,154,163,70,221,153,101,155,167,43,172,9,
-            129,22,39,253,19,98,108,110,79,113,224,232,178,185,112,104,
-            218,246,97,228,251,34,242,193,238,210,144,12,191,179,162,241,
-            81,51,145,235,249,14,239,107,49,192,214,31,181,199,106,157,
-            184,84,204,176,115,121,50,45,127,4,150,254,138,236,205,93,
-            222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
+    // 1) Flat grid (EX1) — center at origin
+    ProcGeometry::Mesh grid = ProcGeometry::CreateGrid(/*width*/50, /*depth*/50, /*cell*/0.2f,
+        /*color*/ glm::vec3(0.85f));
+    // 2) Terrain (EX2) — same footprint, y from perlin wrapper
+    ProcGeometry::Mesh terrain = ProcGeometry::CreateTerrain(50, 50, 0.2f,
+        [](float x, float z) { return terrainHeight(x, z); },
+        glm::vec3(0.75f, 0.9f, 0.75f));
+
+    // 3) Cylinder (EX3)
+    ProcGeometry::Mesh cyl = ProcGeometry::CreateCylinder(/*radius*/0.6f, /*height*/1.8f, /*segments*/48,
+        /*bottom*/glm::vec3(0.9f, 0.4f, 0.4f),
+        /*top*/   glm::vec3(0.4f, 0.4f, 0.9f));
+
+    // Append: we don’t need transforms here; just concatenate all meshes.
+    auto append = [&](const ProcGeometry::Mesh& m)
+        {
+            const uint32_t base = (uint32_t)vertices.size();
+            vertices.insert(vertices.end(), m.vertices.begin(), m.vertices.end());
+            indices.reserve(indices.size() + m.indices.size());
+            for (uint32_t id : m.indices) indices.push_back(base + id);
         };
-        for (int i = 0; i < 256; i++) p[256 + i] = p[i] = permutation[i];
-        initialized = true;
-    }
 
-    int X = (int)floor(x) & 255;
-    int Y = (int)floor(y) & 255;
+    append(grid);
+    append(terrain);
 
-    x -= floor(x);
-    y -= floor(y);
+    // If you want the cylinder slightly raised to avoid z-fight with grid/terrain:
+    // do a quick transform on cyl vertices before append:
+    for (auto& v : cyl.vertices) v.pos.y += 0.2f;
+    append(cyl);
 
-    float u = fade(x);
-    float v = fade(y);
-
-    int A = p[X] + Y;
-    int B = p[X + 1] + Y;
-
-    return lerp(
-        lerp(grad(p[A], x, y), grad(p[B], x - 1, y), u),
-        lerp(grad(p[A + 1], x, y - 1), grad(p[B + 1], x - 1, y - 1), u),
-        v);
-}
-
-// Terrain generator using Perlin noise
-static void createTerrain(
-    int width, int depth,
-    float cellSize,
-    float amplitude, float freqX, float freqZ,
-    float scaleX, float scaleZ,
-    std::vector<Vertex>& outVertices,
-    std::vector<uint32_t>& outIndices)
-{
-    outVertices.clear();
-    outIndices.clear();
-    outVertices.reserve((width + 1) * (depth + 1));
-    outIndices.reserve(width * depth * 6);
-
-    const float halfW = 0.5f * width * cellSize;
-    const float halfD = 0.5f * depth * cellSize;
-
-    for (int j = 0; j <= depth; ++j) {
-        for (int i = 0; i <= width; ++i) {
-            float x = -halfW + i * cellSize;
-            float z = -halfD + j * cellSize;
-
-            float Xs = (i * cellSize) * scaleX;
-            float Zs = (j * cellSize) * scaleZ;
-
-            // Perlin noise-based height
-            float y =
-                amplitude * (0.6f * perlin(Xs * freqX, Zs * freqZ)
-                    + 0.3f * perlin(Xs * freqX * 2.0f, Zs * freqZ * 2.0f)
-                    + 0.1f * perlin(Xs * freqX * 4.0f, Zs * freqZ * 4.0f));
-
-            
-            outVertices.push_back({ glm::vec3(x, y, z), glm::vec3(1.0f, 1.0f, 1.0f) });
-        }
-    }
-
-    // Index buffer generation (two triangles per quad)
-    auto idx = [&](int ii, int jj) { return (uint32_t)(jj * (width + 1) + ii); };
-    for (int j = 0; j < depth; ++j) {
-        for (int i = 0; i < width; ++i) {
-            uint32_t i0 = idx(i, j);
-            uint32_t i1 = idx(i + 1, j);
-            uint32_t i2 = idx(i + 1, j + 1);
-            uint32_t i3 = idx(i, j + 1);
-            outIndices.insert(outIndices.end(), { i0, i1, i2, i0, i2, i3 });
-        }
-    }
-}
-
-
-// Triangle-strip cylinder using primitive restart, caps + wall.
-static void createCylinder(
-    float radius,
-    float height,
-    uint32_t segments,
-    const glm::vec3& colorBottom,
-    const glm::vec3& colorTop,
-    std::vector<Vertex>& outVertices,
-    std::vector<uint32_t>& outIndices)
-{
-    if (segments < 3) segments = 3;
-
-    outVertices.clear();
-    outIndices.clear();
-
-    const float y0 = -0.5f * height;
-    const float y1 = 0.5f * height;
-    const float TWO_PI = 6.28318530718f;
-    const uint32_t RESTART = 0xFFFFFFFFu;
-
-    // Interleave bottom/top ring vertices 
-    for (uint32_t i = 0; i < segments; ++i) {
-        float a = TWO_PI * (float)i / (float)segments;
-        float c = std::cos(a), s = std::sin(a);
-        outVertices.push_back({ glm::vec3(radius * c, y0, radius * s), colorBottom });
-        outVertices.push_back({ glm::vec3(radius * c, y1, radius * s), colorTop });
-    }
-
-    // Add centers
-    uint32_t bottomCenter = UINT32_MAX;
-    uint32_t topCenter = UINT32_MAX;
-
-    bottomCenter = (uint32_t)outVertices.size();
-    outVertices.push_back({ glm::vec3(0.f, y0, 0.f), colorBottom });
-
-
-    topCenter = (uint32_t)outVertices.size();
-    outVertices.push_back({ glm::vec3(0.f, y1, 0.f), colorTop });
-
-    auto idxB = [&](uint32_t i) { return 2u * (i % segments) + 0u; };
-    auto idxT = [&](uint32_t i) { return 2u * (i % segments) + 1u; };
-
-
-    for (uint32_t i = 0; i < segments; ++i) {
-        outIndices.push_back(bottomCenter);
-        outIndices.push_back(idxB(i));
-        outIndices.push_back(idxB(i + 1));
-        outIndices.push_back(RESTART);
-    }
-
-    // Wall
-    for (uint32_t i = 0; i <= segments; ++i) {
-        outIndices.push_back(idxB(i));
-        outIndices.push_back(idxT(i));
-    }
-    outIndices.push_back(RESTART);
-
-    for (uint32_t i = 0; i < segments; ++i) {
-        outIndices.push_back(topCenter);
-        outIndices.push_back(idxT(i));
-        outIndices.push_back(idxT(i + 1));
-        outIndices.push_back(RESTART);
-    }
-}
-
-void loadModel() {
-    createCylinder(
-        1.0f,
-        2.0f,
-        6,
-        glm::vec3(1, 1, 1),
-         glm::vec3(1, 1, 1),
-        vertices, indices
-    );
+    // At this point `vertices` & `indices` contain all 3 shapes in one big mesh.
+    // Your existing code will:
+    //  - create staging buffers (Lab 1 pattern),
+    //  - copy to device-local,
+    //  - bind vertex & index buffers,
+    //  - vkCmdDrawIndexed(indices.size()).
+    //
+    // For wireframe, ensure pipeline rasterizer uses VK_POLYGON_MODE_LINE per Lab 2.  :contentReference[oaicite:3]{index=3}
 }
 
 
@@ -766,8 +612,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
-    auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    auto bindingDescription = getBindingDescription();
+    auto attributeDescriptions = getAttributeDescriptions();
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

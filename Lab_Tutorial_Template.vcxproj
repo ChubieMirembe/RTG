@@ -104,7 +104,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLM\include;..\GLFW\lib-vc2022</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLM\include;..\GLFW\lib-vc2022;$(ProjectDir)Week_3</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableModules>true</EnableModules>
     </ClCompile>
