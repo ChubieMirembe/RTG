@@ -130,8 +130,6 @@ void loadModel() {
 
 
 
-
-
 // --- Vulkan Debug Messenger ---
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
@@ -998,15 +996,19 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+    glm::mat4 fix = glm::rotate(glm::mat4(1.0f), -glm::half_pi<float>(),  // -90° about X
+        glm::vec3(1, 0, 0));
+    ubo.model = fix * glm::mat4(1.0f); // (or fix * rotation if you still want the slow spin)
+    ubo.model = glm::translate(ubo.model, glm::vec3(0.0f, -1.5f, 0.0f)); // move pot down
+
     ubo.view = glm::lookAt(
-        glm::vec3(4.0f, 4.0f, 8.0f),  
-        glm::vec3(0.0f, 1.0f, 2.0f),
+        glm::vec3(1.0f, 8.0f, 8.0f),   // move camera slightly lower
+        glm::vec3(0.0f, 0.5f, 0.0f),   // aim just above the pot’s base
         glm::vec3(0.0f, 1.0f, 0.0f)
     );
 
 
-    ubo.proj = glm::perspective(glm::radians(35.0f),
+    ubo.proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height,
         0.1f, 100.0f);
     ubo.proj[1][1] *= -1;
