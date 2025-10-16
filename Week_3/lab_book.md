@@ -275,8 +275,18 @@ but all my research stated, I had to set that value based on the VkIndexType bei
 ```c++
 
 ```
+**Output:**
+![](Images/ex4.png)
 
 **Reflection:**
+This solution has brought a lot of clarity to my understanding of how to structure code in a more modular and reusable way. 
+By encapsulating the geometry generation logic within a dedicated class, I've made it easier to manage and extend the functionality in the future.
+The most difficult part was integrating each individual object into a single vertex and index buffer, as I had to keep track of the offsets for each object.
+I was able to keep track of the offsets by storing the current size of the vertex and index buffers before adding a new object, and then using those sizes 
+as the offsets for the new object's vertices and indices. When placing objects in a scene I had to learn how to keep everything flat on the XZ plane, by
+setting the Y coordinate to 0. This seems obviosuos now, but I initially struggled with it. I also had a problem with the scaling I used, I was intially
+using a scale of 1.8f for everything, but this made the objects too large, whilst also distorting the sphere, causing it to look oblong,
+and they were clipping through the near plane of the camera, so I had to reduce the scale to 1.0f which fixed both issues. At the start of the exercise I was
 
 
 ### EXERCISE 5: LOADING EXTERNAL MODELS WITH ASSIMP
