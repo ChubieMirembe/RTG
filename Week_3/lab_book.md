@@ -287,6 +287,8 @@ as the offsets for the new object's vertices and indices. When placing objects i
 setting the Y coordinate to 0. This seems obviosuos now, but I initially struggled with it. I also had a problem with the scaling I used, I was intially
 using a scale of 1.8f for everything, but this made the objects too large, whilst also distorting the sphere, causing it to look oblong,
 and they were clipping through the near plane of the camera, so I had to reduce the scale to 1.0f which fixed both issues. At the start of the exercise I was
+encountering a lot of error that I didn't understand, so instead of build the objects with a triangle strip, I built them with individual triangles, which 
+fixed the errors. Once this was working I refactored the code to use triangle strips, which worked fine.
 
 
 ### EXERCISE 5: LOADING EXTERNAL MODELS WITH ASSIMP
