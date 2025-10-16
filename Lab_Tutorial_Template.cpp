@@ -24,13 +24,19 @@
 #include <array>
 #include <optional>
 #include <set>
-#include "ProcGeometry.hpp"   // <-- add this at the top, after glm includes
-using ProcGeometry::Mesh;
+#include "GeometryUtil.hpp"   // <-- add this at the top, after glm includes
+
 
 // --- Configuration ---
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 const int MAX_FRAMES_IN_FLIGHT = 2;
+
+struct UniformBufferObject {
+    alignas(16) glm::mat4 model; // ok to set identity if you bake transforms
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
+};
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -79,80 +85,46 @@ static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions
     return attributeDescriptions;
 }
 
-struct UniformBufferObject {
-    alignas(16) glm::mat4 model;
-    alignas(16) glm::mat4 view;
-    alignas(16) glm::mat4 proj;
-};
-
-// Uses the template's global containers.
-// If you previously had "extern", keep them as real definitions in ONE .cpp only.
-extern std::vector<Vertex>   vertices;
-extern std::vector<uint32_t> indices;
-
-// Your existing Perlin function is used to make terrain height.
-// (If it lives in another TU, just keep the declaration here.)
-float perlin(float, float);
-
-// Simple wrapper matching your earlier terrain scale
-static float terrainHeight(float x, float z)
-{
-    const float amplitude = 0.6f;
-    const float freqX = 0.15f;
-    const float freqZ = 0.15f;
-
-    float y = amplitude * (
-        0.6f * perlin(x * freqX, z * freqZ) +
-        0.3f * perlin(x * freqX * 2.0f, z * freqZ * 2.0f) +
-        0.1f * perlin(x * freqX * 4.0f, z * freqZ * 4.0f)
-        );
-    return y;
-}
+std::vector<Vertex>   vertices;
+std::vector<uint32_t> indices;
 
 void loadModel()
 {
-    // ??? Exercise 4: use reusable generator to build multiple meshes ???
+    // make sure these are the global (or member) buffers you already use for VB/IB upload:
+    
+
+    // helper to append a MeshData into the big V/I arrays with an optional model transform
+    auto append = [](const MeshData& m,
+        std::vector<Vertex>& V,
+        std::vector<uint32_t>& I,
+        const glm::mat4& M = glm::mat4(1.0f))
+        {
+            const uint32_t base = static_cast<uint32_t>(V.size());
+            V.reserve(V.size() + m.vertices.size());
+            for (const auto& v : m.vertices) {
+                glm::vec4 p = M * glm::vec4(v.pos, 1.0f);
+                V.push_back(Vertex{ glm::vec3(p), v.color });
+            }
+            I.reserve(I.size() + m.indices.size());
+            for (uint32_t idx : m.indices) I.push_back(base + idx);
+        };
+
+    // clear previous data
     vertices.clear();
     indices.clear();
 
-    // 1) Flat grid (EX1) — center at origin
-    ProcGeometry::Mesh grid = ProcGeometry::CreateGrid(/*width*/50, /*depth*/50, /*cell*/0.2f,
-        /*color*/ glm::vec3(0.85f));
-    // 2) Terrain (EX2) — same footprint, y from perlin wrapper
-    ProcGeometry::Mesh terrain = ProcGeometry::CreateTerrain(50, 50, 0.2f,
-        [](float x, float z) { return terrainHeight(x, z); },
-        glm::vec3(0.75f, 0.9f, 0.75f));
+    // Slightly smaller grid and reduced X offsets for closer grouping
+    MeshData grid = createGrid(30.0f, 30.0f, 80, 80, { 0.25f, 0.70f, 0.25f });
+    MeshData cyl = createCylinder(0.6f, 0.6f, 3.0f, 48, 1, { 0.35f, 0.50f, 0.90f });
+    MeshData sph = createSphere(0.8f, 48, 24, { 0.90f, 0.30f, 0.30f });
 
-    // 3) Cylinder (EX3)
-    ProcGeometry::Mesh cyl = ProcGeometry::CreateCylinder(/*radius*/0.6f, /*height*/1.8f, /*segments*/48,
-        /*bottom*/glm::vec3(0.9f, 0.4f, 0.4f),
-        /*top*/   glm::vec3(0.4f, 0.4f, 0.9f));
+    // Append all meshes into unified vertex/index arrays
+    append(grid, vertices, indices); // grid centered at origin
+    append(cyl, vertices, indices,
+        glm::translate(glm::mat4(1.0f), glm::vec3(-1.8f, 1.5f, 0.0f))); // cylinder closer to center
+    append(sph, vertices, indices,
+        glm::translate(glm::mat4(1.0f), glm::vec3(+1.8f, 0.9f, 0.0f))); // sphere closer to center
 
-    // Append: we don’t need transforms here; just concatenate all meshes.
-    auto append = [&](const ProcGeometry::Mesh& m)
-        {
-            const uint32_t base = (uint32_t)vertices.size();
-            vertices.insert(vertices.end(), m.vertices.begin(), m.vertices.end());
-            indices.reserve(indices.size() + m.indices.size());
-            for (uint32_t id : m.indices) indices.push_back(base + id);
-        };
-
-    append(grid);
-    append(terrain);
-
-    // If you want the cylinder slightly raised to avoid z-fight with grid/terrain:
-    // do a quick transform on cyl vertices before append:
-    for (auto& v : cyl.vertices) v.pos.y += 0.2f;
-    append(cyl);
-
-    // At this point `vertices` & `indices` contain all 3 shapes in one big mesh.
-    // Your existing code will:
-    //  - create staging buffers (Lab 1 pattern),
-    //  - copy to device-local,
-    //  - bind vertex & index buffers,
-    //  - vkCmdDrawIndexed(indices.size()).
-    //
-    // For wireframe, ensure pipeline rasterizer uses VK_POLYGON_MODE_LINE per Lab 2.  :contentReference[oaicite:3]{index=3}
 }
 
 
@@ -477,6 +449,8 @@ void HelloTriangleApplication::createLogicalDevice() {
     VkPhysicalDeviceFeatures2 deviceFeatures2{};
     deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     deviceFeatures2.pNext = &dynamicRenderingFeatures;
+    deviceFeatures2.features.fillModeNonSolid = VK_TRUE;
+
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -624,10 +598,10 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-    inputAssembly.primitiveRestartEnable = VK_TRUE;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-    VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
+    //VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -1021,9 +995,9 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.8f, 1.0f));
+    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
     ubo.view = glm::lookAt(
-        glm::vec3(4.0f, 8.0f, 8.0f),  
+        glm::vec3(4.0f, 4.0f, 8.0f),  
         glm::vec3(0.0f, 1.0f, 2.0f),
         glm::vec3(0.0f, 1.0f, 0.0f)
     );
