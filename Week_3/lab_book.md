@@ -166,8 +166,9 @@ static void createTerrain(
 ![](Images/ex2.png)
 
 **Reflection:**
-This exercise was quite challenging, as I had to research Perlin noise and understand how to implement it.
-But once I understood the concept, it was straightforward to integrate it into the terrain generation function.
+This exercise was quite challenging, as I had to research Perlin noise and understand how to implement it. But once I understood the concept, 
+it was straightforward to integrate it into the terrain generation function. I decided to use the perlin noise implementation over a simple
+math function, as it produced a more natural-looking terrain. I also had to adjust the frequency and amplitude parameters to get it looking right.
 
 ### EXERCISE 3: PROCEDURAL CYLINDER
 #### Goal: Procedurally generate and render a cylinder mesh.
@@ -538,4 +539,84 @@ During this exercise, I learnt how to integrate the Assimp library into my Vulka
 which provided free 3D models. I also learnt that low pily models are better for real-time rendering, as they have fewer vertices and faces to process.
 For this exercise, I wanted to used different objects, but the teapot model was one of the few look still looked good with a low poly count. I also
 had to remove the object file from git ignore, because otherwise I wouldn't be able to push the teapot file onto the repository.
+
+### FURTHER EXPLORATION 
+```c++
+const aiScene* scene = importer.ReadFile(
+    "C:/Users/984381/source/repos/ChubieMirembe/RTG/Week_3/teapot.obj",
+    aiProcess_Triangulate |
+    aiProcess_JoinIdenticalVertices |
+    aiProcess_ImproveCacheLocality |
+    aiProcess_OptimizeMeshes |
+    aiProcess_GenNormals |          // generate if missing (for future lighting)
+    aiProcess_FlipUVs               // keep if your assets need it
+    // , aiProcess_CalcTangentSpace // enable later if you add tangents/normal maps
+    // , aiProcess_ValidateDataStructure // handy while debugging bad assets
+);
+
+```
+
+```c++
+void loadModel() {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(
+        "C:/Users/984381/source/repos/ChubieMirembe/RTG/Week_3/teapot.obj",
+        aiProcess_Triangulate |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_ImproveCacheLocality |
+        aiProcess_OptimizeMeshes |
+        aiProcess_GenNormals |
+        aiProcess_FlipUVs
+    );
+
+    if (!scene || !scene->HasMeshes()) {
+        throw std::runtime_error(std::string("Assimp load failed: ") + importer.GetErrorString());
+    }
+
+    vertices.clear();
+    indices.clear();
+
+    // Optional: give each mesh a slightly different grayscale so you can see them
+    auto meshColor = [](unsigned mIdx, unsigned meshCount) -> glm::vec3 {
+        float t = meshCount > 1 ? (float)mIdx / (meshCount - 1) : 0.5f;
+        return glm::vec3(0.6f + 0.4f * t); // 0.6..1.0
+    };
+
+    for (unsigned m = 0; m < scene->mNumMeshes; ++m) {
+        const aiMesh* mesh = scene->mMeshes[m];
+        if (!mesh->HasPositions() || !mesh->HasFaces()) continue;
+
+        const uint32_t baseVertex = static_cast<uint32_t>(vertices.size());
+        glm::vec3 color = meshColor(m, scene->mNumMeshes);
+
+        // Positions (normals are generated but not used yet)
+        vertices.reserve(vertices.size() + mesh->mNumVertices);
+        for (unsigned i = 0; i < mesh->mNumVertices; ++i) {
+            Vertex v{};
+            v.pos   = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
+            v.color = color;
+            vertices.push_back(v);
+        }
+
+        // Indices (apply baseVertex offset)
+        indices.reserve(indices.size() + mesh->mNumFaces * 3);
+        for (unsigned f = 0; f < mesh->mNumFaces; ++f) {
+            const aiFace& face = mesh->mFaces[f];
+            if (face.mNumIndices != 3) continue; // we asked for triangulate
+            indices.push_back(baseVertex + face.mIndices[0]);
+            indices.push_back(baseVertex + face.mIndices[1]);
+            indices.push_back(baseVertex + face.mIndices[2]);
+        }
+    }
+
+    if (vertices.empty() || indices.empty()) {
+        throw std::runtime_error("Model has no renderable geometry after processing.");
+    }
+}
+
+```
+
+***Reflection:***
+Upon further exploration, I discovered that we don't have to manually handle multiple meshes in a model, as Assimp does this for us. So for future
+references, I can just loop through all the meshes in a model and render them one by one. I also found out that Assimp can load many different file formats.
 
