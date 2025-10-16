@@ -95,36 +95,35 @@ void loadModel()
 
     // helper to append a MeshData into the big V/I arrays with an optional model transform
     auto append = [](const MeshData& m,
-        std::vector<Vertex>& V,
-        std::vector<uint32_t>& I,
-        const glm::mat4& M = glm::mat4(1.0f))
-        {
-            const uint32_t base = static_cast<uint32_t>(V.size());
-            V.reserve(V.size() + m.vertices.size());
-            for (const auto& v : m.vertices) {
-                glm::vec4 p = M * glm::vec4(v.pos, 1.0f);
-                V.push_back(Vertex{ glm::vec3(p), v.color });
-            }
-            I.reserve(I.size() + m.indices.size());
-            for (uint32_t idx : m.indices) I.push_back(base + idx);
-        };
+                     std::vector<Vertex>& V,
+                     std::vector<uint32_t>& I,
+                     const glm::mat4& M = glm::mat4(1.0f))
+    {
+        const uint32_t base = static_cast<uint32_t>(V.size());
+        V.reserve(V.size() + m.vertices.size());
+        for (const auto& v : m.vertices) {
+            glm::vec4 p = M * glm::vec4(v.pos, 1.0f);
+            V.push_back(Vertex{ glm::vec3(p), v.color });
+        }
+        I.reserve(I.size() + m.indices.size() + 1);
+        for (uint32_t idx : m.indices) {
+            I.push_back(idx == RESTART_INDEX ? RESTART_INDEX : base + idx);
+        }
+        // separate meshes
+        if (!I.empty() && I.back() != RESTART_INDEX) I.push_back(RESTART_INDEX);
+    };
 
     // clear previous data
     vertices.clear();
     indices.clear();
 
-    // Slightly smaller grid and reduced X offsets for closer grouping
-    MeshData grid = createGrid(30.0f, 30.0f, 80, 80, { 0.25f, 0.70f, 0.25f });
-    MeshData cyl = createCylinder(0.6f, 0.6f, 3.0f, 48, 1, { 0.35f, 0.50f, 0.90f });
-    MeshData sph = createSphere(0.8f, 48, 24, { 0.90f, 0.30f, 0.30f });
+    MeshData grid = createGridStrip(30.0f, 30.0f, 80, 80, { 0.25f, 0.70f, 0.25f });
+    MeshData cyl  = createCylinderStrip(0.6f, 0.6f, 3.0f, 48, 1, { 0.35f, 0.50f, 0.90f });
+    MeshData sph  = createSphereStrip(0.8f, 48, 24, { 0.90f, 0.30f, 0.30f });
 
-    // Append all meshes into unified vertex/index arrays
-    append(grid, vertices, indices); // grid centered at origin
-    append(cyl, vertices, indices,
-        glm::translate(glm::mat4(1.0f), glm::vec3(-1.8f, 1.5f, 0.0f))); // cylinder closer to center
-    append(sph, vertices, indices,
-        glm::translate(glm::mat4(1.0f), glm::vec3(+1.8f, 0.9f, 0.0f))); // sphere closer to center
-
+    append(grid, vertices, indices);
+    append(cyl,  vertices, indices, glm::translate(glm::mat4(1.0f), glm::vec3(-1.8f, 1.5f, 0.0f)));
+    append(sph,  vertices, indices, glm::translate(glm::mat4(1.0f), glm::vec3(+1.8f, 0.9f, 0.0f)));
 }
 
 
@@ -598,8 +597,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; // was TRIANGLE_LIST
+    inputAssembly.primitiveRestartEnable = VK_TRUE;                // enable restart
 
     //VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
