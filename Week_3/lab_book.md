@@ -536,5 +536,6 @@ void loadModel() {
 **Reflection:**
 During this exercise, I learnt how to integrate the Assimp library into my Vulkan project. I also found several wesbsite that I was unfamilar with
 which provided free 3D models. I also learnt that low pily models are better for real-time rendering, as they have fewer vertices and faces to process.
-For this exercise, I wanted to used different objects, but the teapot model was one of the few look still looked good with a low poly count.
+For this exercise, I wanted to used different objects, but the teapot model was one of the few look still looked good with a low poly count. I also
+had to remove the object file from git ignore, because otherwise I wouldn't be able to push the teapot file onto the repository.
 
