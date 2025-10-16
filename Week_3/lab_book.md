@@ -256,7 +256,7 @@ void loadModel() {
 ![](images/ex3_solid.png)
 
 2. Wireframe cylinder
-![](images/ex3_wireframe.png)
+![](images/ex3_wireframes.png)
 
 At first my understanding was I had to create individual layers for the cylinder and place them on top of each other,
 but upon further exploration I found out that I just needed one triangle strip which would wrap around back to the starting
@@ -270,7 +270,7 @@ but all my research stated, I had to set that value based on the VkIndexType bei
 
 ### EXERCISE 4:  WIREFRAME RENDERING
 #### Goal: Refactor the procedural generation code into a reusable C++ class or namespace, similar to the GeometryGenerator provided at d3d12book/Chapter 7 Drawing in Direct3D 
-#### Part II at master · d3dcoder/d3d12book using the procedural geometric models defined in GeometryGenerator.h, GeometryGenerator.cp
+#### Part II at master ï¿½ d3dcoder/d3d12book using the procedural geometric models defined in GeometryGenerator.h, GeometryGenerator.cp
 
 **Solution:**
 ```c++
