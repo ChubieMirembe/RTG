@@ -104,7 +104,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLM\include;..\GLFW\lib-vc2022;$(ProjectDir)Week_3</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLM\include;..\GLFW\lib-vc2022;$(ProjectDir)Week_3;C:\Users\984381\source\repos\ChubieMirembe\RTG\packages\Assimp_native_4.1.4.1.0\build\native\include\assimp</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableModules>true</EnableModules>
     </ClCompile>
@@ -112,7 +112,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;glfw3_mt.lib;glfw3dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib;$(VULKAN_SDK)\Bin;..\GLFW\lib-vc2022;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\lib-vc2022;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW;%(AdditionalLibraryDirectories);C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\lib-vc2022</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib;$(VULKAN_SDK)\Bin;..\GLFW\lib-vc2022;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\lib-vc2022;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW;C:\Users\984381\source\repos\ChubieMirembe\RTG\packages\Assimp_native_4.1.4.1.0\build\native\include;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
       <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
@@ -176,8 +176,12 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Shaders\vert.spv</Outputs>
     </CustomBuild>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="packages\Assimp_native_4.1.4.1.0\build\native\Assimp_native_4.1.targets" Condition="Exists('packages\Assimp_native_4.1.4.1.0\build\native\Assimp_native_4.1.targets')" />
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerEnvironment>PATH=$(VULKAN_SDK)\Bin
@@ -199,4 +203,10 @@ $(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
 $(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\Assimp_native_4.1.4.1.0\build\native\Assimp_native_4.1.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Assimp_native_4.1.4.1.0\build\native\Assimp_native_4.1.targets'))" />
+  </Target>
 </Project>

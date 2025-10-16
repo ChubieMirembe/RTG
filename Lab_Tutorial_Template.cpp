@@ -24,7 +24,12 @@
 #include <array>
 #include <optional>
 #include <set>
-#include "GeometryUtil.hpp"   // <-- add this at the top, after glm includes
+#include "GeometryUtil.hpp"   
+
+//Assimp headers
+//#include <assimp/Importer.hpp> 
+//#include <assimp/scene.h> 
+//#include <assimp/postprocess.h>
 
 
 // --- Configuration ---
@@ -90,9 +95,7 @@ std::vector<uint32_t> indices;
 
 void loadModel()
 {
-    // make sure these are the global (or member) buffers you already use for VB/IB upload:
     
-
     // helper to append a MeshData into the big V/I arrays with an optional model transform
     auto append = [](const MeshData& m,
                      std::vector<Vertex>& V,
