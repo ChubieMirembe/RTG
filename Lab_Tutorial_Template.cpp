@@ -27,9 +27,9 @@
 #include "GeometryUtil.hpp"   
 
 //Assimp headers
-//#include <assimp/Importer.hpp> 
-//#include <assimp/scene.h> 
-//#include <assimp/postprocess.h>
+#include <assimp/Importer.hpp> 
+#include <assimp/scene.h> 
+#include <assimp/postprocess.h>
 
 
 // --- Configuration ---
@@ -38,7 +38,7 @@ const uint32_t HEIGHT = 600;
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 struct UniformBufferObject {
-    alignas(16) glm::mat4 model; // ok to set identity if you bake transforms
+    alignas(16) glm::mat4 model; 
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
 };
@@ -90,44 +90,45 @@ static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions
     return attributeDescriptions;
 }
 
+
+
 std::vector<Vertex>   vertices;
 std::vector<uint32_t> indices;
 
-void loadModel()
-{
-    
-    // helper to append a MeshData into the big V/I arrays with an optional model transform
-    auto append = [](const MeshData& m,
-                     std::vector<Vertex>& V,
-                     std::vector<uint32_t>& I,
-                     const glm::mat4& M = glm::mat4(1.0f))
-    {
-        const uint32_t base = static_cast<uint32_t>(V.size());
-        V.reserve(V.size() + m.vertices.size());
-        for (const auto& v : m.vertices) {
-            glm::vec4 p = M * glm::vec4(v.pos, 1.0f);
-            V.push_back(Vertex{ glm::vec3(p), v.color });
-        }
-        I.reserve(I.size() + m.indices.size() + 1);
-        for (uint32_t idx : m.indices) {
-            I.push_back(idx == RESTART_INDEX ? RESTART_INDEX : base + idx);
-        }
-        // separate meshes
-        if (!I.empty() && I.back() != RESTART_INDEX) I.push_back(RESTART_INDEX);
-    };
 
-    // clear previous data
+void loadModel() {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(
+        "C:/Users/984381/source/repos/ChubieMirembe/RTG/Week_3/teapot.obj",
+        aiProcess_Triangulate | aiProcess_FlipUVs
+    );
+
+    aiMesh* mesh = scene->mMeshes[0];
+
     vertices.clear();
     indices.clear();
 
-    MeshData grid = createGridStrip(30.0f, 30.0f, 80, 80, { 0.25f, 0.70f, 0.25f });
-    MeshData cyl  = createCylinderStrip(0.6f, 0.6f, 3.0f, 48, 1, { 0.35f, 0.50f, 0.90f });
-    MeshData sph  = createSphereStrip(0.8f, 48, 24, { 0.90f, 0.30f, 0.30f });
+    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+        Vertex vertex;
+        vertex.pos = {
+            mesh->mVertices[i].x,
+            mesh->mVertices[i].y,
+            mesh->mVertices[i].z
+        };
+        vertex.color = { 1.0f, 1.0f, 1.0f };
+        vertices.push_back(vertex);
+    }
 
-    append(grid, vertices, indices);
-    append(cyl,  vertices, indices, glm::translate(glm::mat4(1.0f), glm::vec3(-1.8f, 1.5f, 0.0f)));
-    append(sph,  vertices, indices, glm::translate(glm::mat4(1.0f), glm::vec3(+1.8f, 0.9f, 0.0f)));
+    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+        aiFace face = mesh->mFaces[i];
+        for (unsigned int j = 0; j < face.mNumIndices; j++) {
+            indices.push_back(face.mIndices[j]);
+        }
+    }
+
 }
+
+
 
 
 
@@ -600,8 +601,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; // was TRIANGLE_LIST
-    inputAssembly.primitiveRestartEnable = VK_TRUE;                // enable restart
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // was TRIANGLE_LIST
+    inputAssembly.primitiveRestartEnable = VK_FALSE;                // enable restart
 
     //VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
