@@ -497,9 +497,39 @@ zig-zagging between adjacent rings and ending with a restart.
 **Solution:**
 
 ```c++
+void loadModel() {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(
+        "C:/Users/984381/source/repos/ChubieMirembe/RTG/Week_3/teapot.obj",
+        aiProcess_Triangulate | aiProcess_FlipUVs
+    );
+
+    aiMesh* mesh = scene->mMeshes[0];
+
+    vertices.clear();
+    indices.clear();
+
+    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+        Vertex vertex;
+        vertex.pos = {
+            mesh->mVertices[i].x,
+            mesh->mVertices[i].y,
+            mesh->mVertices[i].z
+        };
+        vertex.color = { 1.0f, 1.0f, 1.0f };
+        vertices.push_back(vertex);
+    }
+
+    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+        aiFace face = mesh->mFaces[i];
+        for (unsigned int j = 0; j < face.mNumIndices; j++) {
+            indices.push_back(face.mIndices[j]);
+        }
+    }
+
+}
 ```
-```c++
-```
+
 
 
 **Reflection:**
