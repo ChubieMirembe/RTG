@@ -1,7 +1,6 @@
 # Vulkan Lab 2 - Complex Shapes
 ## Week 3 - Lab A
 
-
 ### EXERCISE 1: CREATE A FLAT GRID
 ####  Generate the vertices and indices for a flat grid of arbitrary width and depth, centred at the origin, and render it in wireframe.
 
@@ -52,11 +51,12 @@ When I followed the implementation steps, then angle I was looking at the grid w
 I fixed this by changing lookat function until the output matched the example image. I also had to modify all the buffer sizes to use uint32_t instead of uint16_t, 
 as that's what the example code used for the parameters of the grid
 
+---
 ### EXERCISE 2: CREATE A WAVY TERRAIN
 #### Goal:  Modify the grid generation logic to create a simple, wavy terrain.
 
 **Solution:**
-I extended the grid generation logic to produce a wavy terrain using Perlin noise. To achieve this, I implemented helper functions for smoothing and interpolation (fade, lerp, and grad) and then built the Perlin noise algorithm to generate coherent height variations across the surface. I combined multiple frequencies (octaves) of noise to create more natural variation and scaled the amplitude to control the terrain height. Once the height values were applied to the Y-axis of each vertex, the output formed a smooth, realistic wavy surface. I experimented with the amplitude and frequency to channge the appearance of the terrain, ans eventually settled on the values used below.
+I extended the grid generation logic to produce a wavy terrain using Perlin noise. To achieve this, I implemented helper functions for smoothing and interpolation (fade, lerp, and grad) and then built the Perlin noise algorithm to generate coherent height variations across the surface. I combined multiple frequencies (octaves) of noise to create more natural variation and scaled the amplitude to control the terrain height. Once the height values were applied to the Y-axis of each vertex, the output formed a smooth, realistic wavy surface. I experimented with the amplitude and frequency to channge the appearance of the terrain, ans eventually settled on the values used below. 
 
 ```c++
 // Perlin noise helper functions
@@ -188,6 +188,7 @@ This exercise was quite challenging, as I had to research Perlin noise and under
 **References:**
 - good (2016). Computer Graphics Stack Exchange. [online] Computer Graphics Stack Exchange. Available at: https://computergraphics.stackexchange.com/questions/1959/what-makes-a-good-permutation-table.
 
+---
 ### EXERCISE 3: PROCEDURAL CYLINDER
 #### Goal: Procedurally generate and render a cylinder mesh.
 
@@ -283,7 +284,7 @@ because that RESTART_INDEX function is built in when primitiveRestartEnable is s
 I saw you call the "RESTART INDEX" without enabling it in the lecture and and you mentioned you wanted us to use this in our function,
 but all my research stated, I had to set that value based on the VkIndexType being used.
 
-
+---
 ### EXERCISE 4:  WIREFRAME RENDERING
 #### Goal: Refactor the procedural generation code into a reusable C++ class or namespace, similar to the GeometryGenerator provided at Chapter 7 Drawing in Direct3D, Part II using the procedural geometric models defined in GeometryGenerator.h, GeometryGenerator.cp
 
@@ -508,6 +509,8 @@ zig-zagging between adjacent rings and ending with a restart.
 - Sergey Kosarevsky, Medvedev, A. and Viktor Latypov (2025). Vulkan 3D Graphics Rendering Cookbook. Packt Publishing Ltd.
 - Luna, F. (2011) GeometryGenerator.cpp. [Source code]. Available at: https://github.com/d3dcoder/d3d12book/blob/master/Common/GeometryGenerator.cpp 
 
+---
+
 ### EXERCISE 5: LOADING EXTERNAL MODELS WITH ASSIMP
 #### Goal: Integrate the Assimp library into your project to load and render a 3D model from an .obj file.
 
@@ -558,7 +561,8 @@ For this exercise, I wanted to used different objects, but the teapot model was 
 had to remove the object file from git ignore, because otherwise I wouldn't be able to push the teapot file onto the repository.
 
 **References:**
-
+- printable_models (2018) Brown Betty Teapot v1 [3D model]. Free3D. Available at: https://free3d.com/3d-model/brown-betty-teapot-v1--730417.html
+---
 
 ### FURTHER EXPLORATION 
 ```c++
