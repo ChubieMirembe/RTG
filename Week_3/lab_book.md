@@ -6,6 +6,8 @@
 ####  Generate the vertices and indices for a flat grid of arbitrary width and depth, centred at the origin, and render it in wireframe.
 
 **Solution:**
+I generated a flat grid by computing vertex positions in a double loop across the X and Z axes, centering them around the origin. The indices were created to connect each quad of four vertices into two triangles, forming the grid surface. After rendering it in wireframe, I found the viewing angle was too steep, so I modified the glm::lookAt camera parameters until it matched the example image. I also adjusted the buffer definitions to use uint32_t instead of uint16_t, which resolved parameter and rendering issues in the example code.
+
 ```c++
 void createGrid(int width, int depth, std::vector<Vertex>& outVertices, std::vector<uint32_t>& outIndices) {
     for (int z = 0; z <= depth; ++z) {
@@ -54,6 +56,8 @@ as that's what the example code used for the parameters of the grid
 #### Goal:  Modify the grid generation logic to create a simple, wavy terrain.
 
 **Solution:**
+I extended the grid generation logic to produce a wavy terrain using Perlin noise. To achieve this, I implemented helper functions for smoothing and interpolation (fade, lerp, and grad) and then built the Perlin noise algorithm to generate coherent height variations across the surface. I combined multiple frequencies (octaves) of noise to create more natural variation and scaled the amplitude to control the terrain height. Once the height values were applied to the Y-axis of each vertex, the output formed a smooth, realistic wavy surface. 
+
 ```c++
 // Perlin noise helper functions
 float fade(float t) { return t * t * t * (t * (t * 6 - 15) + 10); }
@@ -183,10 +187,15 @@ This exercise was quite challenging, as I had to research Perlin noise and under
 it was straightforward to integrate it into the terrain generation function. I decided to use the perlin noise implementation over a simple
 math function, as it produced a more natural-looking terrain. I also had to adjust the frequency and amplitude parameters to get it looking right.
 
+**References:**
+- Sergey Kosarevsky, Medvedev, A. and Viktor Latypov (2025). Vulkan 3D Graphics Rendering Cookbook. Packt Publishing Ltd.
+- good (2016). Computer Graphics Stack Exchange. [online] Computer Graphics Stack Exchange. Available at: https://computergraphics.stackexchange.com/questions/1959/what-makes-a-good-permutation-table.
+
 ### EXERCISE 3: PROCEDURAL CYLINDER
 #### Goal: Procedurally generate and render a cylinder mesh.
 
 **Solution:**
+For the cylinder, I generated two rings of vertices—one for the top and one for the bottom—using trigonometric functions to position points evenly around a circle. I then connected these rings using triangle strips and added a center vertex for both the top and bottom faces. To allow Vulkan to correctly separate the faces, I used a restart index (0xFFFFFFFF) and enabled VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP. Initially, I thought I needed to stack multiple circular layers, but I later realized that a single triangle strip looping back to the starting point produced the correct cylindrical shape.
 
 ```c++
 static void createCylinder(
@@ -271,10 +280,13 @@ void loadModel() {
 2. Wireframe cylinder
 ![](images/ex3_wireframes.png)
 
+**Reflection:**
 At first my understanding was I had to create individual layers for the cylinder and place them on top of each other,
 but upon further exploration I found out that I just needed one triangle strip which would wrap around back to the starting
 index. The next breakthrough was realising I can just repeat the same process for the top and bottom faces of the cylinder.
 All I now needed was a center vertex for both the top and bottom faces, and connect them to the respective ring of vertices.
+Upon further reflection, it appears, that I may have missed something, thats why the "RESTART_INDEX" wasn't working,
+because that RESTART_INDEX function is built in when primitiveRestartEnable is set to True.
 
 **Question:**
 I saw you call the "RESTART INDEX" without enabling it in the lecture and and you mentioned you wanted us to use this in our function,
