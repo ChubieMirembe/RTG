@@ -1,4 +1,4 @@
-# Vulkan Lab 1 - Complex Shapes
+# Vulkan Lab 2 - Complex Shapes
 ## Week 3 - Lab A
 
 
@@ -158,6 +158,19 @@ static void createTerrain(
             outIndices.insert(outIndices.end(), { i0, i1, i2, i0, i2, i3 });
         }
     }
+}
+```
+
+```c++
+void loadModel() {
+    createTerrain(
+        200, 200,            
+        0.1f,                
+        1.2f,                
+        1.5f, 1.5f,         
+        0.25f, 0.25f,        
+        vertices, indices
+    );
 }
 ```
 
