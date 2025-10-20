@@ -3,8 +3,6 @@
 //====================================================
 
 #define GLFW_INCLUDE_VULKAN
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-
 #include <GLFW/glfw3.h>
 
 #define GLM_FORCE_RADIANS
@@ -24,24 +22,11 @@
 #include <array>
 #include <optional>
 #include <set>
-#include "GeometryUtil.hpp"   
-
-//Assimp headers
-#include <assimp/Importer.hpp> 
-#include <assimp/scene.h> 
-#include <assimp/postprocess.h>
-
 
 // --- Configuration ---
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 const int MAX_FRAMES_IN_FLIGHT = 2;
-
-struct UniformBufferObject {
-    alignas(16) glm::mat4 model; 
-    alignas(16) glm::mat4 view;
-    alignas(16) glm::mat4 proj;
-};
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -74,61 +59,88 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+// --- Vertex Data ---
 
-static VkVertexInputBindingDescription getBindingDescription() {
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    return bindingDescription;
-}
+struct Vertex {
+    glm::vec3 pos;
+    glm::vec3 color;
 
-static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
-    attributeDescriptions[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos) };
-    attributeDescriptions[1] = { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color) };
-    return attributeDescriptions;
-}
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(Vertex);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        return bindingDescription;
+    }
 
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+        attributeDescriptions[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos) };
+        attributeDescriptions[1] = { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color) };
+        return attributeDescriptions;
+    }
+};
 
+struct UniformBufferObject {
+    alignas(16) glm::mat4 model;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
+};
 
-std::vector<Vertex>   vertices;
-std::vector<uint32_t> indices;
+const std::vector<Vertex> Quad_vertices = {
+    {{-1.0f, -1.0f, +1.0f}, {1.0f, 0.0f, 0.0f}}, // 0
+    {{+1.0f, -1.0f, +1.0f}, {0.0f, 1.0f, 0.0f}}, // 1
+    {{+1.0f, +1.0f, +1.0f}, {0.0f, 0.0f, 1.0f}}, // 2
+    {{-1.0f, +1.0f, +1.0f}, {1.0f, 1.0f, 1.0f}}, // 3
 
+    {{-1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 1.0f}}, // 4
+    {{+1.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 0.0f}}, // 5
+    {{+1.0f, +1.0f, -1.0f}, {0.0f, 1.0f, 1.0f}}, // 6
+    {{-1.0f, +1.0f, -1.0f}, {1.0f, 0.5f, 0.0f}}, // 7
+};
+
+const std::vector<uint16_t> Quad_indices = {
+    // Face 1: Front (+Z) 
+0, 1, 3, 2,
+
+// Degenerate 
+2, 1,
+
+// Face 2: Right (+X) 
+1, 5, 2, 6,
+
+// Degenerate 
+6, 5,
+
+// Face 3: Back (-Z) 
+5, 4, 6, 7,
+
+// Degenerate 
+7, 4,
+
+// Face 4: Left (-X)
+4, 0, 7, 3,
+
+// Degenerate 
+3, 2,
+
+// Face 5: Top (+Y) 
+3, 2, 7, 6,
+
+// Degenerate 
+6, 5,
+
+// Face 6: Bottom (-Y) 
+5, 1, 4, 0
+};
+
+std::vector<Vertex> vertices;
+std::vector<uint16_t> indices;
 
 void loadModel() {
-    Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(
-        "C:/Users/984381/source/repos/ChubieMirembe/RTG/Week_3/teapot.obj",
-        aiProcess_Triangulate | aiProcess_FlipUVs
-    );
-
-    aiMesh* mesh = scene->mMeshes[0];
-
-    vertices.clear();
-    indices.clear();
-
-    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
-        Vertex vertex;
-        vertex.pos = {
-            mesh->mVertices[i].x,
-            mesh->mVertices[i].y,
-            mesh->mVertices[i].z
-        };
-        vertex.color = { 1.0f, 1.0f, 1.0f };
-        vertices.push_back(vertex);
-    }
-
-    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
-        aiFace face = mesh->mFaces[i];
-        for (unsigned int j = 0; j < face.mNumIndices; j++) {
-            indices.push_back(face.mIndices[j]);
-        }
-    }
-
+    vertices = Quad_vertices;
+    indices = Quad_indices;
 }
-
-
 
 // --- Vulkan Debug Messenger ---
 
@@ -450,8 +462,6 @@ void HelloTriangleApplication::createLogicalDevice() {
     VkPhysicalDeviceFeatures2 deviceFeatures2{};
     deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     deviceFeatures2.pNext = &dynamicRenderingFeatures;
-    deviceFeatures2.features.fillModeNonSolid = VK_TRUE;
-
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -587,8 +597,8 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
-    auto bindingDescription = getBindingDescription();
-    auto attributeDescriptions = getAttributeDescriptions();
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -599,10 +609,10 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // was TRIANGLE_LIST
-    inputAssembly.primitiveRestartEnable = VK_FALSE;                // enable restart
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-    //VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
+    VkProvokingVertexModeEXT provokingVertexMode = VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -613,9 +623,9 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -963,9 +973,9 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     VkBuffer vertexBuffers[] = { vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRendering(commandBuffer);
 
@@ -996,27 +1006,14 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    glm::mat4 fix = glm::rotate(glm::mat4(1.0f), -glm::half_pi<float>(),  // -90° about X
-        glm::vec3(1, 0, 0));
-    ubo.model = fix * glm::mat4(1.0f); // (or fix * rotation if you still want the slow spin)
-    ubo.model = glm::translate(ubo.model, glm::vec3(0.0f, -1.5f, 0.0f)); // move pot down
+    glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(1.5f, 1.5f, 2.0f));
+    glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f), glm::vec3(1.6f, 1.3f, 0.1f)), glm::radians(60.0f), glm::vec3(1, 0, 0)), glm::radians(-20.0f), glm::vec3(0, 1, 0));
 
-    ubo.view = glm::lookAt(
-        glm::vec3(1.0f, 8.0f, 8.0f),   // move camera slightly lower
-        glm::vec3(0.0f, 0.5f, 0.0f),   // aim just above the pot’s base
-        glm::vec3(0.0f, 1.0f, 0.0f)
-    );
-
-
-    ubo.proj = glm::perspective(glm::radians(45.0f),
-        swapChainExtent.width / (float)swapChainExtent.height,
-        0.1f, 100.0f);
+    ubo.model = rotate * modelMatrix;
+    ubo.view = glm::lookAt(glm::vec3(6.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.5f), glm::vec3(0.0f, 0.0f, 10.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
-
-
-
-
-
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
