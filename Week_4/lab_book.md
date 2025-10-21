@@ -58,7 +58,6 @@ transformations work in 3D graphics and how they can be used to create different
 ### EXERCISE 2:HIERARCHICAL TRANSFORMATIONS
 #### Goal: Apply scaling, translation, and rotation transformations to achieve the following visual outcomes
 
-
 **Solution:**
 ```c++
 
@@ -67,11 +66,14 @@ transformations work in 3D graphics and how they can be used to create different
 
 ```
 
-
 **Output:**
+1. Single Cube Rotation:
+![](Images/ex2_single_cube.png)
 
+2. Dual Cube Rotation:
+![](Images/ex2_dual_cube.png)
 
-**Reflection:**
+1. **Reflection:**
 
 
 ### EXERCISE 3: PROCEDURAL CYLINDER
