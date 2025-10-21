@@ -1,11 +1,12 @@
-# Vulkan Lab 1 - Complex Shapes
+# Vulkan Lab 2 - Complex Shapes
 ## Week 3 - Lab A
-
 
 ### EXERCISE 1: CREATE A FLAT GRID
 ####  Generate the vertices and indices for a flat grid of arbitrary width and depth, centred at the origin, and render it in wireframe.
 
 **Solution:**
+I generated a flat grid by computing vertex positions in a double loop across the X and Z axes, centering them around the origin. The indices were created to connect each quad of four vertices into two triangles, forming the grid surface. After rendering it in wireframe, I found the viewing angle was too steep, so I modified the glm::lookAt camera parameters until it matched the example image. I also adjusted the buffer definitions to use uint32_t instead of uint16_t, which resolved parameter and rendering issues in the example code.
+
 ```c++
 void createGrid(int width, int depth, std::vector<Vertex>& outVertices, std::vector<uint32_t>& outIndices) {
     for (int z = 0; z <= depth; ++z) {
@@ -50,10 +51,13 @@ When I followed the implementation steps, then angle I was looking at the grid w
 I fixed this by changing lookat function until the output matched the example image. I also had to modify all the buffer sizes to use uint32_t instead of uint16_t, 
 as that's what the example code used for the parameters of the grid
 
+---
 ### EXERCISE 2: CREATE A WAVY TERRAIN
 #### Goal:  Modify the grid generation logic to create a simple, wavy terrain.
 
 **Solution:**
+I extended the grid generation logic to produce a wavy terrain using Perlin noise. To achieve this, I implemented helper functions for smoothing and interpolation (fade, lerp, and grad) and then built the Perlin noise algorithm to generate coherent height variations across the surface. I combined multiple frequencies (octaves) of noise to create more natural variation and scaled the amplitude to control the terrain height. Once the height values were applied to the Y-axis of each vertex, the output formed a smooth, realistic wavy surface. I experimented with the amplitude and frequency to channge the appearance of the terrain, ans eventually settled on the values used below. 
+
 ```c++
 // Perlin noise helper functions
 float fade(float t) { return t * t * t * (t * (t * 6 - 15) + 10); }
@@ -161,19 +165,35 @@ static void createTerrain(
 }
 ```
 
+```c++
+void loadModel() {
+    createTerrain(
+        200, 200,            
+        0.1f,                
+        1.2f,                
+        1.5f, 1.5f,         
+        0.25f, 0.25f,        
+        vertices, indices
+    );
+}
+```
+
 
 **Output:**
 ![](Images/ex2.png)
 
 **Reflection:**
-This exercise was quite challenging, as I had to research Perlin noise and understand how to implement it. But once I understood the concept, 
-it was straightforward to integrate it into the terrain generation function. I decided to use the perlin noise implementation over a simple
-math function, as it produced a more natural-looking terrain. I also had to adjust the frequency and amplitude parameters to get it looking right.
+This exercise was quite challenging, as I had to research Perlin noise and understand how to implement it. But once I understood the concept, it was straightforward to integrate it into the terrain generation function. I decided to use the perlin noise implementation over a simple math function, as it produced a more natural-looking terrain. I also had to adjust the frequency and amplitude parameters to get it looking right.
 
+**References:**
+- good (2016). Computer Graphics Stack Exchange. [online] Computer Graphics Stack Exchange. Available at: https://computergraphics.stackexchange.com/questions/1959/what-makes-a-good-permutation-table.
+
+---
 ### EXERCISE 3: PROCEDURAL CYLINDER
 #### Goal: Procedurally generate and render a cylinder mesh.
 
 **Solution:**
+For the cylinder, I generated two rings of vertices, one for the top and one for the bottom, using trigonometric functions to position points evenly around a circle. I then connected these rings using triangle strips and added a center vertex for both the top and bottom faces. To allow Vulkan to correctly separate the faces, I used a restart index (0xFFFFFFFF) and enabled VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP. Initially, I thought I needed to stack multiple circular layers, but I later realized that a single triangle strip looping back to the starting point produced the correct cylindrical shape.
 
 ```c++
 static void createCylinder(
@@ -198,7 +218,6 @@ static void createCylinder(
         outVertices.push_back({ glm::vec3(radius * c, y1, radius * s), colorTop });
     }
 
-    // Add centers
     uint32_t bottomCenter = UINT32_MAX;
     uint32_t topCenter = UINT32_MAX;
 
@@ -220,7 +239,6 @@ static void createCylinder(
         outIndices.push_back(RESTART);
     }
 
-    // Wall
     for (uint32_t i = 0; i <= segments; ++i) {
         outIndices.push_back(idxB(i));
         outIndices.push_back(idxT(i));
@@ -258,21 +276,21 @@ void loadModel() {
 2. Wireframe cylinder
 ![](images/ex3_wireframes.png)
 
-At first my understanding was I had to create individual layers for the cylinder and place them on top of each other,
-but upon further exploration I found out that I just needed one triangle strip which would wrap around back to the starting
-index. The next breakthrough was realising I can just repeat the same process for the top and bottom faces of the cylinder.
-All I now needed was a center vertex for both the top and bottom faces, and connect them to the respective ring of vertices.
+**Reflection:**
+At first my understanding was I had to create individual layers for the cylinder and place them on top of each other, but upon further exploration I found out that I just needed one triangle strip which would wrap around back to the starting index. The next breakthrough was realising I can just repeat the same process for the top and bottom faces of the cylinder. All I now needed was a center vertex for both the top and bottom faces, and connect them to the respective ring of vertices. Upon further reflection, it appears, that I may have missed something, thats why the "RESTART_INDEX" wasn't working,
+because that RESTART_INDEX function is built in when primitiveRestartEnable is set to True.
 
 **Question:**
 I saw you call the "RESTART INDEX" without enabling it in the lecture and and you mentioned you wanted us to use this in our function,
 but all my research stated, I had to set that value based on the VkIndexType being used.
 
-
+---
 ### EXERCISE 4:  WIREFRAME RENDERING
-#### Goal: Refactor the procedural generation code into a reusable C++ class or namespace, similar to the GeometryGenerator provided at d3d12book/Chapter 7 Drawing in Direct3D 
-#### Part II at master � d3dcoder/d3d12book using the procedural geometric models defined in GeometryGenerator.h, GeometryGenerator.cp
+#### Goal: Refactor the procedural generation code into a reusable C++ class or namespace, similar to the GeometryGenerator provided at Chapter 7 Drawing in Direct3D, Part II using the procedural geometric models defined in GeometryGenerator.h, GeometryGenerator.cp
 
 **Solution:**
+I refactored all the procedural geometry generation code into a reusable C++ class, inspired by the GeometryGenerator structure from the Direct3D book. This approach modularized the logic and made it easier to add new procedural shapes in the future. I also integrated all generated shapes into shared vertex and index buffers by tracking offsets for each addition. During testing, I resolved scaling and clipping issues by reducing the overall scale and ensuring all objects were aligned along the XZ plane. Switching from individual triangles to triangle strips after debugging further improved performance and code organisation.
+
 ```c++
 #pragma once
 #include <vector>
@@ -439,7 +457,7 @@ inline MeshData createSphereStrip(float r, uint32_t sliceCount, uint32_t stackCo
 void loadModel()
 {
     
-    // helper to append a MeshData into the big V/I arrays with an optional model transform
+    // helper to append a MeshData into one indices and vertices arrray
     auto append = [](const MeshData& m,
                      std::vector<Vertex>& V,
                      std::vector<uint32_t>& I,
@@ -458,10 +476,6 @@ void loadModel()
         // separate meshes
         if (!I.empty() && I.back() != RESTART_INDEX) I.push_back(RESTART_INDEX);
     };
-
-    // clear previous data
-    vertices.clear();
-    indices.clear();
 
     MeshData grid = createGridStrip(30.0f, 30.0f, 80, 80, { 0.25f, 0.70f, 0.25f });
     MeshData cyl  = createCylinderStrip(0.6f, 0.6f, 3.0f, 48, 1, { 0.35f, 0.50f, 0.90f });
@@ -491,11 +505,17 @@ not a single giant strip. I duplicate the first slice vertex on each ring (slice
 The top and bottom caps are emitted as tiny 3-index strips [pole, vj, vj+1], each followed by a restart. The middle is built as one strip per latitude band,
 zig-zagging between adjacent rings and ending with a restart. 
 
+**References:**
+- Sergey Kosarevsky, Medvedev, A. and Viktor Latypov (2025). Vulkan 3D Graphics Rendering Cookbook. Packt Publishing Ltd.
+- Luna, F. (2011) GeometryGenerator.cpp. [Source code]. Available at: https://github.com/d3dcoder/d3d12book/blob/master/Common/GeometryGenerator.cpp 
+
+---
 
 ### EXERCISE 5: LOADING EXTERNAL MODELS WITH ASSIMP
 #### Goal: Integrate the Assimp library into your project to load and render a 3D model from an .obj file.
 
 **Solution:**
+In this exercise, I set up the structure for integrating the Assimp library to import .obj models into the Vulkan rendering pipeline. The goal was to load external 3D geometry data directly into vertex and index buffers for rendering. Although the implementation was still in progress, I prepared the code framework and verified that the imported data could be mapped into the same rendering structure as the procedural models.
 
 ```c++
 void loadModel() {
@@ -540,6 +560,10 @@ which provided free 3D models. I also learnt that low pily models are better for
 For this exercise, I wanted to used different objects, but the teapot model was one of the few look still looked good with a low poly count. I also
 had to remove the object file from git ignore, because otherwise I wouldn't be able to push the teapot file onto the repository.
 
+**References:**
+- printable_models (2018) Brown Betty Teapot v1 [3D model]. Free3D. Available at: https://free3d.com/3d-model/brown-betty-teapot-v1--730417.html
+---
+
 ### FURTHER EXPLORATION 
 ```c++
 const aiScene* scene = importer.ReadFile(
@@ -548,10 +572,8 @@ const aiScene* scene = importer.ReadFile(
     aiProcess_JoinIdenticalVertices |
     aiProcess_ImproveCacheLocality |
     aiProcess_OptimizeMeshes |
-    aiProcess_GenNormals |          // generate if missing (for future lighting)
-    aiProcess_FlipUVs               // keep if your assets need it
-    // , aiProcess_CalcTangentSpace // enable later if you add tangents/normal maps
-    // , aiProcess_ValidateDataStructure // handy while debugging bad assets
+    aiProcess_GenNormals |          
+    aiProcess_FlipUVs               
 );
 
 ```
@@ -576,10 +598,10 @@ void loadModel() {
     vertices.clear();
     indices.clear();
 
-    // Optional: give each mesh a slightly different grayscale so you can see them
+    // grayscale so you can see them
     auto meshColor = [](unsigned mIdx, unsigned meshCount) -> glm::vec3 {
         float t = meshCount > 1 ? (float)mIdx / (meshCount - 1) : 0.5f;
-        return glm::vec3(0.6f + 0.4f * t); // 0.6..1.0
+        return glm::vec3(0.6f + 0.4f * t); 
     };
 
     for (unsigned m = 0; m < scene->mNumMeshes; ++m) {
@@ -589,7 +611,6 @@ void loadModel() {
         const uint32_t baseVertex = static_cast<uint32_t>(vertices.size());
         glm::vec3 color = meshColor(m, scene->mNumMeshes);
 
-        // Positions (normals are generated but not used yet)
         vertices.reserve(vertices.size() + mesh->mNumVertices);
         for (unsigned i = 0; i < mesh->mNumVertices; ++i) {
             Vertex v{};
@@ -598,11 +619,10 @@ void loadModel() {
             vertices.push_back(v);
         }
 
-        // Indices (apply baseVertex offset)
         indices.reserve(indices.size() + mesh->mNumFaces * 3);
         for (unsigned f = 0; f < mesh->mNumFaces; ++f) {
             const aiFace& face = mesh->mFaces[f];
-            if (face.mNumIndices != 3) continue; // we asked for triangulate
+            if (face.mNumIndices != 3) continue; 
             indices.push_back(baseVertex + face.mIndices[0]);
             indices.push_back(baseVertex + face.mIndices[1]);
             indices.push_back(baseVertex + face.mIndices[2]);
