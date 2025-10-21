@@ -203,20 +203,9 @@ private:
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
 
-	//for lab book
-    std::vector<VkBuffer> uniformBuffersPillar;
-    std::vector<VkDeviceMemory> uniformBuffersMemoryPillar;
-
-    std::vector<VkBuffer> uniformBuffersCube;
-    std::vector<VkDeviceMemory> uniformBuffersMemoryCube;
-
     // --- Descriptors ---
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> descriptorSets;
-
-    // for lab book
-    std::vector<VkDescriptorSet> descriptorSetsPillar;
-    std::vector<VkDescriptorSet> descriptorSetsCube;
 
     // --- Synchronization ---
     std::vector<VkCommandBuffer> commandBuffers;
@@ -805,38 +794,6 @@ void HelloTriangleApplication::createDescriptorSets() {
     }
 }
 
-// for lab book
-void HelloTriangleApplication::createDescriptorSetsPillar() {
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-    allocInfo.pSetLayouts = layouts.data();
-
-    HelloTriangleApplication::descriptorSetsPillar.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSetsPillar.data()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate descriptor sets for pillar!");
-    }
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffersPillar[i];
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
-
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = descriptorSetsPillar[i];
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
-
-        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
-    }
-}
 
 void HelloTriangleApplication::createCommandBuffers() {
     commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
