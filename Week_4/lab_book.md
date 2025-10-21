@@ -55,8 +55,9 @@ I continued to have understanding how to "lookat" the object. But by the end, I 
 model was being rendered by changeing the radians in the rotation matrix. This exercise helped me understand how scaling 
 transformations work in 3D graphics and how they can be used to create different shapes from a basic cube.
 
-### EXERCISE 2: CREATE A WAVY TERRAIN
-#### Goal:  Modify the grid generation logic to create a simple, wavy terrain.
+### EXERCISE 2:HIERARCHICAL TRANSFORMATIONS
+#### Goal: Apply scaling, translation, and rotation transformations to achieve the following visual outcomes
+
 
 **Solution:**
 ```c++
