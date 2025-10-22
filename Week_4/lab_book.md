@@ -245,7 +245,8 @@ float sunScale   = 1.6f;
 glm::mat4 Sun =
     glm::rotate(glm::mat4(1.0f), sunSpin, glm::vec3(0,1,0)) *  
     glm::scale (glm::mat4(1.0f), glm::vec3(sunScale));         
-- Eath Transformation:
+```
+- Earth Transformation:
 ```c++
 float earthRadius = 4.0f;  
 float earthScale  = 0.6f;   
@@ -290,8 +291,8 @@ Overall, I now have a much clearer grasp of hierarchical modelling, transformati
 using only matrix operations.
 
 
-### EXERCISE 5: LOADING EXTERNAL MODELS WITH ASSIMP
-#### Goal: Integrate the Assimp library into your project to load and render a 3D model from an .obj file.
+### EXERCISE 5: UNDERSTANDING VIEW AND PROJECTION
+
 
 **Solution:**
 
