@@ -69,7 +69,11 @@ transformations work in 3D graphics and how they can be used to create different
 
 
 **Output:**
+1. Single Towwer and Cube:
+![](Images/ex2_single_tower.png)
 
+2. Double Tower and Cube:
+![](Images/ex2_double_tower.png)
 
 **Reflection:**
 
