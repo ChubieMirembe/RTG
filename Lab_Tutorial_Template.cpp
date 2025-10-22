@@ -1066,9 +1066,9 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     // --- camera
     glm::vec3 eye(8.0f, 5.0f, 8.0f);
     glm::vec3 center(0.0f, 0.0f, 0.0f);
-    glm::vec3 up(0.0f, 1.0f, 0.0f);
+    glm::vec3 upWorld(0.0f, 1.0f, 0.0f);
 
-    glm::mat4 view = glm::lookAt(eye, center, up);
+    glm::mat4 view = glm::lookAt(eye, center, upWorld);
     glm::mat4 proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height,
         0.1f, 100.0f);
@@ -1084,24 +1084,25 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     const float groundT = 0.08f;  // ground thickness (scale Y)
     const float groundY = -1.0f;  // ground vertical offset
 
-    const float orbitR = 1.6f;   // orbit radius for cubes
-    const float cubeS = 0.45f;  // cube size
+    const float orbitR = 1.6f;    // orbit radius
+    // stick dimensions (thin rod so orientation is visible)
+    const float stickW = 0.18f;   // X thickness
+    const float stickH = 0.18f;   // Y thickness
+    const float stickL = 1.10f;   // Z length (along local +Z)
 
     // per-orbiter angular speeds / directions / phases
-    const float omegaL_deg = 60.0f;    // left cube speed (deg/s)
-    const float omegaR_deg = 140.0f;   // right cube speed (deg/s)
+    const float omegaL_deg = 60.0f;    // left stick speed (deg/s)
+    const float omegaR_deg = 140.0f;   // right stick speed (deg/s)
     const float dirL = +1.0f;          // +CCW, -CW
     const float dirR = -1.0f;          // opposite direction for variety
     const float phaseL_deg = 0.0f;     // starting phase
     const float phaseR_deg = 45.0f;
 
-    // --- models
-    // ground: translate down, then scale wide & thin
+    // --- static models
     glm::mat4 groundModel =
         glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, groundY, 0.0f)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(groundW, groundT, groundD));
 
-    // pillars: place at +/- pillarX along X, tall & thin
     glm::mat4 pillarLModel =
         glm::translate(glm::mat4(1.0f), glm::vec3(-pillarX, 0.0f, 0.0f)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(pillarR, pillarH, pillarR));
@@ -1110,44 +1111,61 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
         glm::translate(glm::mat4(1.0f), glm::vec3(+pillarX, 0.0f, 0.0f)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(pillarR, pillarH, pillarR));
 
-    // orbit helper (GLM post-multiply: rightmost happens first)
-    auto orbitMatrix = [&](float omega_deg, float dir, float phase_deg) -> glm::mat4 {
-        float angleRad = glm::radians(phase_deg + dir * omega_deg * t);
-        glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angleRad, glm::vec3(0, 1, 0));
-        glm::mat4 push = glm::translate(glm::mat4(1.0f), glm::vec3(orbitR, 0.0f, 0.0f));
-        return rot * push; // translate, then rotate about origin
+    // --- helper to build a tangent-aligned stick model at a given center
+    auto tangentStickAt = [&](const glm::vec3& center, float omegaDeg, float dir, float phaseDeg) -> glm::mat4 {
+        // angle and position on circle (Y=0 plane)
+        float angle = glm::radians(phaseDeg + dir * omegaDeg * t);
+        float x = center.x + orbitR * std::cos(angle);
+        float z = center.z + orbitR * std::sin(angle);
+        glm::vec3 pos(x, center.y, z);
+
+        // tangent direction of the circular path at this angle
+        // derivative of (cos, sin) is (-sin, cos)
+        glm::vec3 forward = glm::normalize(glm::vec3(-std::sin(angle), 0.0f, std::cos(angle)));
+
+        // build an orthonormal basis (right, up, forward) with world up preference
+        glm::vec3 right = glm::normalize(glm::cross(upWorld, forward));
+        // handle the rare case of near-parallel up/forward
+        if (glm::dot(right, right) < 1e-6f) right = glm::vec3(1, 0, 0);
+        glm::vec3 up = glm::normalize(glm::cross(forward, right));
+
+        // rotation matrix from basis (GLM is column-major: columns are basis vectors)
+        glm::mat4 R(1.0f);
+        R[0] = glm::vec4(right, 0.0f); // local +X
+        R[1] = glm::vec4(up, 0.0f); // local +Y
+        R[2] = glm::vec4(forward, 0.0f); // local +Z points along tangent
+
+        // scale to a thin stick along local +Z
+        glm::mat4 S = glm::scale(glm::mat4(1.0f), glm::vec3(stickW, stickH, stickL));
+
+        // translate to orbit position, then orient, then scale
+        return glm::translate(glm::mat4(1.0f), pos) * R * S;
         };
 
-    // centers for each orbiter (at each pillar)
-    glm::mat4 centerL = glm::translate(glm::mat4(1.0f), glm::vec3(-pillarX, 0.0f, 0.0f));
-    glm::mat4 centerR = glm::translate(glm::mat4(1.0f), glm::vec3(+pillarX, 0.0f, 0.0f));
+    // centers for each orbiter (at each pillar position)
+    glm::vec3 centerL(-pillarX, 0.0f, 0.0f);
+    glm::vec3 centerR(+pillarX, 0.0f, 0.0f);
 
-    // orbiting cubes: center * orbit * scale
-    glm::mat4 cubeLModel =
-        centerL * orbitMatrix(omegaL_deg, dirL, phaseL_deg) *
-        glm::scale(glm::mat4(1.0f), glm::vec3(cubeS));
+    // build tangent-aligned stick models
+    glm::mat4 stickLModel = tangentStickAt(centerL, omegaL_deg, dirL, phaseL_deg);
+    glm::mat4 stickRModel = tangentStickAt(centerR, omegaR_deg, dirR, phaseR_deg);
 
-    glm::mat4 cubeRModel =
-        centerR * orbitMatrix(omegaR_deg, dirR, phaseR_deg) *
-        glm::scale(glm::mat4(1.0f), glm::vec3(cubeS));
-
-    // --- write UBOs (5 objects per frame: ground, pillarL, pillarR, cubeL, cubeR)
+    // --- write UBOs (5 objects per frame: ground, pillarL, pillarR, stickL, stickR)
     const uint32_t base = currentImage * 5;
 
     auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
         UniformBufferObject u{};
-        u.model = model;
-        u.view = view;
-        u.proj = proj;
+        u.model = model; u.view = view; u.proj = proj;
         std::memcpy(uniformBuffersMapped[base + idx], &u, sizeof(u));
         };
 
     writeUBO(0, groundModel);
     writeUBO(1, pillarLModel);
     writeUBO(2, pillarRModel);
-    writeUBO(3, cubeLModel);
-    writeUBO(4, cubeRModel);
+    writeUBO(3, stickLModel);   // was cubeLModel
+    writeUBO(4, stickRModel);   // was cubeRModel
 }
+
 
 
 /////////////////////////////////////////////////////

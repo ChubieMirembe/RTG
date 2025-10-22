@@ -158,31 +158,72 @@ to handle occlusion. This exercise helped me solidify my understanding of the mo
 frame-level uniform buffer management, and real-time animation in Vulkan. It also highlighted the importance of organizing 
 transformation logic and resource management when scaling up from a single object to a dynamic scene.
 
-### EXERCISE 3: PROCEDURAL CYLINDER
-#### Goal: Procedurally generate and render a cylinder mesh.
+### Exercise 3: Advanced Rotation - Tangent to Path
+#### Goal:  Transform the small rotating cube into a long, slender stick by applying an appropriate scaling transformation. Then, rotate the stick around an axis such that it remains tangent to its circular rotation path at all times, as illustrated below.
 
 **Solution:**
+In Exercise 3, I built directly on the scene and transformation logic developed in Exercise 2. I kept the same overall 
+model structure, the ground plane, two tall pillars, and two orbiting objects, but replaced the orbiting cubes with 
+elongated sticks to emphasize orientation changes. Building on my previous orbit logic, I modified the transformation so 
+that each stick not only followed its circular path but also rotated dynamically to stay tangent to its orbit, meaning 
+the stick always pointed in the direction of motion. I achieved this by computing the tangent vector using trigonometric 
+functions of the orbital angle and constructing a rotation matrix from an orthonormal basis formed by the tangent, up, 
+and right vectors. I used `glm::dot(right, right)` to check for zero-length vectors before normalizing, ensuring stable 
+calculations without requiring additional GLM extensions. By reusing the hierarchical structure and matrix composition 
+from Exercise 2 — including per-object model matrices and uniform buffer updates. I successfully animated two 
+tangent-aligned sticks orbiting at different speeds around the same pillars, demonstrating how transformations can be 
+extended from simple orbital motion to orientation-aware hierarchical movement.
 
 ```c++
-```
-```c++
-```
-**Solution:**
+// World up (already used in your camera)
+glm::vec3 upWorld(0.0f, 1.0f, 0.0f);
 
-```c++
+// Build a stick model at 'center' that orbits at speed 'omegaDeg' and stays tangent
+auto tangentStickAt = [&](const glm::vec3& center, float omegaDeg, float dir, float phaseDeg) -> glm::mat4 {
+    // angle & position on circle (Y=0 plane)
+    float angle = glm::radians(phaseDeg + dir * omegaDeg * t);
+    glm::vec3 pos(center.x + orbitR * std::cos(angle),
+                  center.y,
+                  center.z + orbitR * std::sin(angle));
+
+    // tangent direction of the orbit (derivative of (cos, sin) => (-sin, cos))
+    glm::vec3 forward = glm::normalize(glm::vec3(-std::sin(angle), 0.0f, std::cos(angle)));
+
+    // right axis from up × forward; guard against degeneracy using dot (squared length)
+    glm::vec3 right = glm::cross(upWorld, forward);
+    if (glm::dot(right, right) < 1e-6f) right = glm::vec3(1, 0, 0); // fallback axis
+    right = glm::normalize(right);
+
+    // recompute up to ensure orthonormal basis
+    glm::vec3 up = glm::normalize(glm::cross(forward, right));
+
+    // rotation matrix from basis (column-major: X=right, Y=up, Z=forward)
+    glm::mat4 R(1.0f);
+    R[0] = glm::vec4(right,   0.0f);
+    R[1] = glm::vec4(up,      0.0f);
+    R[2] = glm::vec4(forward, 0.0f);
+
+    // scale into a thin stick along local +Z
+    glm::mat4 S = glm::scale(glm::mat4(1.0f), glm::vec3(stickW, stickH, stickL));
+
+    // final model: translate to orbit position, orient to tangent, then scale
+    return glm::translate(glm::mat4(1.0f), pos) * R * S;
+};
 ```
-```c++
-```
-
-
-
 
 **Output:**
+![](ex3.png)
 
-
-**Question:**
-
-
+**Reflection:**
+In this exercise, I learned how to extend hierarchical transformations beyond simple orbital motion to include orientation 
+that reflects an object’s direction of travel. Building on the previous exercise, I discovered how to calculate tangent 
+vectors from circular motion using trigonometric relationships and use them to dynamically orient an object along its path.
+I learned how to construct an orthonormal basis (right, up, and forward vectors) to define an object’s rotation in 3D 
+space and how matrix composition (translate * rotate * scale) controls both position and orientation. Implementing this 
+also helped me understand how to manage numerical stability by checking vector lengths with glm::dot(right, right) before 
+normalization. More importantly, this exercise reinforced the idea that small changes in transformation logic can 
+significantly affect how an object behaves in a scene, and that hierarchical models can be reused and expanded to create 
+more complex, realistic animations.
 
 ### EXERCISE 4:  WIREFRAME RENDERING
 #### Goal: Refactor the procedural generation code into a reusable C++ class or namespace, similar to the GeometryGenerator provided at d3d12book/Chapter 7 Drawing in Direct3D 
