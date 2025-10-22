@@ -49,6 +49,19 @@ const bool enableValidationLayers = true;
 // Data
 /////////////////////////////////////////////////////
 
+
+// Match GLSL std140 layout exactly
+// Replace your old UniformBufferObject with this version:
+struct UniformBufferObject {
+    alignas(16) glm::mat4 model;   // per-object model matrix
+    alignas(16) glm::vec4 eye;     // xyz = camera position
+    alignas(16) glm::vec4 center;  // xyz = look-at target
+    alignas(16) glm::vec4 up;      // xyz = world up (e.g., 0,1,0)
+    alignas(16) glm::vec4 cam;     // x=fovy(rad), y=aspect, z=zNear, w=zFar
+};
+
+
+
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
@@ -80,11 +93,6 @@ struct Vertex {
     }
 };
 
-struct UniformBufferObject {
-    alignas(16) glm::mat4 model;
-    alignas(16) glm::mat4 view;
-    alignas(16) glm::mat4 proj;
-};
 
 // Cube geometry (triangle strip with degenerates)
 const std::vector<Vertex> Quad_vertices = {
@@ -612,7 +620,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     vi.pVertexAttributeDescriptions = attrs.data();
 
     VkPipelineInputAssemblyStateCreateInfo ia{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     ia.primitiveRestartEnable = VK_FALSE;
 
     VkPipelineViewportStateCreateInfo vp{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
@@ -1081,63 +1089,50 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
 /////////////////////////////////////////////////////
 
 void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
-    // --- Time tracking
+    // --- Time
     static auto start = std::chrono::high_resolution_clock::now();
     float t = std::chrono::duration<float>(
         std::chrono::high_resolution_clock::now() - start).count();
 
-    // --- Camera setup
-    glm::vec3 eye(12.0f, 7.0f, 12.0f);
-    glm::vec3 center(0.0f, 0.0f, 0.0f);
-    glm::vec3 up(0.0f, 1.0f, 0.0f);
+    // --- Camera params (now sent directly, not as matrices)
+    glm::vec3 eye = { 12.0f, 7.0f, 12.0f };
+    glm::vec3 center = { 0.0f, 0.0f,  0.0f };
+    glm::vec3 up = { 0.0f, 1.0f,  0.0f };
 
-    glm::mat4 view = glm::lookAt(eye, center, up);
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f),
-        swapChainExtent.width / (float)swapChainExtent.height,
-        0.1f, 200.0f);
-    proj[1][1] *= -1.0f; // Vulkan Y-flip
+    float fovy = glm::radians(45.0f);
+    float aspect = swapChainExtent.width / (float)swapChainExtent.height;
+    float zNear = 0.1f;
+    float zFar = 200.0f;
 
-    // --- Orbital & rotation speeds
+    // --- Speeds
     float sunSpinDeg = 10.0f;
     float earthOrbitDeg = 40.0f;
     float earthSpinDeg = 120.0f;
     float moonOrbitDeg = 200.0f;
-    float moonSpinDeg = 200.0f;   // same as orbit → tidal lock
 
-    // --- Distances and sizes
-    float earthRadius = 4.0f;   // Sun→Earth
-    float moonRadius = 1.6f;   // Earth→Moon
-
+    // --- Distances / scales
+    float earthRadius = 4.0f;
+    float moonRadius = 1.6f;
     float sunScale = 1.6f;
-    float earthScale = .6f;
+    float earthScale = 0.6f;
     float moonScale = 0.18f;
 
-    // --- Orbit tilts
+    // --- Tilts
     float earthTiltDeg = 15.0f;
     float moonTiltDeg = 5.0f;
 
-    // --- Convert to radians × time
+    // --- Angles
     float sunSpin = glm::radians(sunSpinDeg) * t;
     float earthOrbit = glm::radians(earthOrbitDeg) * t;
     float earthSpin = glm::radians(earthSpinDeg) * t;
     float moonOrbit = glm::radians(moonOrbitDeg) * t;
-    float moonSpin = glm::radians(moonSpinDeg) * t;
 
-    // --------------------------------------------------
-    // SUN (root)
-    // --------------------------------------------------
+    // --- Sun (root)
     glm::mat4 Sun =
         glm::rotate(glm::mat4(1.0f), sunSpin, glm::vec3(0, 1, 0)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(sunScale));
 
-    // --------------------------------------------------
-    // EARTH (relative to Sun)
-    // 1) Start with Sun
-    // 2) Orbital rotation
-    // 3) Translation (radius)
-    // 4) Axial rotation
-    // 5) Scale
-    // --------------------------------------------------
+    // --- Earth (relative to Sun)
     glm::mat4 Earth =
         Sun *
         glm::rotate(glm::mat4(1.0f), glm::radians(earthTiltDeg), glm::vec3(1, 0, 0)) *
@@ -1146,31 +1141,25 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
         glm::rotate(glm::mat4(1.0f), earthSpin, glm::vec3(0, 1, 0)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(earthScale));
 
-    // --------------------------------------------------
-    // MOON (relative to Earth)
-    // 1) Start with Earth's final transform
-    // 2) Apply Moon's orbital rotation + translation
-    // 3) Apply Moon's axial spin (tidal lock)
-    // 4) Apply scale
-    // --------------------------------------------------
+    // --- Moon (relative to Earth) with tidal lock (inverse rotation)
     glm::mat4 Moon =
         Earth *
         glm::rotate(glm::mat4(1.0f), glm::radians(moonTiltDeg), glm::vec3(0, 0, 1)) *
         glm::rotate(glm::mat4(1.0f), moonOrbit, glm::vec3(0, 1, 0)) *
         glm::translate(glm::mat4(1.0f), glm::vec3(moonRadius, 0, 0)) *
-        glm::rotate(glm::mat4(1.0f), -moonOrbit, glm::vec3(0, 1, 0)) *  // tidal lock
+        glm::rotate(glm::mat4(1.0f), -moonOrbit, glm::vec3(0, 1, 0)) * // tidal lock
         glm::scale(glm::mat4(1.0f), glm::vec3(moonScale));
 
-    // --------------------------------------------------
-    // UBO writes (Sun, Earth, Moon)
-    // --------------------------------------------------
+    // --- Write 3 UBOs (Sun, Earth, Moon) for this frame
     const uint32_t base = currentImage * 3;
 
     auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
         UniformBufferObject u{};
         u.model = model;
-        u.view = view;
-        u.proj = proj;
+        u.eye = glm::vec4(eye, 1.0f);
+        u.center = glm::vec4(center, 1.0f);
+        u.up = glm::vec4(up, 0.0f);                  // w unused
+        u.cam = glm::vec4(fovy, aspect, zNear, zFar);
         std::memcpy(uniformBuffersMapped[base + idx], &u, sizeof(u));
         };
 
@@ -1178,6 +1167,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     writeUBO(1, Earth);
     writeUBO(2, Moon);
 }
+
 
 
 /////////////////////////////////////////////////////
