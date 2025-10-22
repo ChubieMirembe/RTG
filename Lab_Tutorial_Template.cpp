@@ -716,7 +716,7 @@ void HelloTriangleApplication::createIndexBuffer() {
 }
 
 void HelloTriangleApplication::createUniformBuffers() {
-    const size_t total = MAX_FRAMES_IN_FLIGHT * 2; // pillar + orbit cube per frame
+    const size_t total = MAX_FRAMES_IN_FLIGHT * 5; // pillar + orbit cube per frame
     VkDeviceSize sz = sizeof(UniformBufferObject);
 
     uniformBuffers.resize(total);
@@ -732,7 +732,7 @@ void HelloTriangleApplication::createUniformBuffers() {
 }
 
 void HelloTriangleApplication::createDescriptorPool() {
-    const uint32_t totalSets = MAX_FRAMES_IN_FLIGHT * 2;
+    const uint32_t totalSets = MAX_FRAMES_IN_FLIGHT * 5;
 
     VkDescriptorPoolSize pool{};
     pool.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -748,7 +748,7 @@ void HelloTriangleApplication::createDescriptorPool() {
 }
 
 void HelloTriangleApplication::createDescriptorSets() {
-    const uint32_t totalSets = MAX_FRAMES_IN_FLIGHT * 2;
+    const uint32_t totalSets = MAX_FRAMES_IN_FLIGHT * 5;
 
     std::vector<VkDescriptorSetLayout> layouts(totalSets, descriptorSetLayout);
     VkDescriptorSetAllocateInfo ai{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
@@ -1004,16 +1004,33 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
     vkCmdBindVertexBuffers(cmd, 0, 1, vbs, offsets);
     vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-    // Draw 1: pillar (descriptor set 0 for this frame)
-    const uint32_t base = currentFrame * 2;
+    const uint32_t base = currentFrame * 5;
+
+    // 0) ground
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
         0, 1, &descriptorSets[base + 0], 0, nullptr);
     vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
-    // Draw 2: orbiting cube (descriptor set 1 for this frame)
+    // 1) left pillar
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
         0, 1, &descriptorSets[base + 1], 0, nullptr);
     vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    // 2) right pillar
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+        0, 1, &descriptorSets[base + 2], 0, nullptr);
+    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    // 3) left cube
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+        0, 1, &descriptorSets[base + 3], 0, nullptr);
+    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    // 4) right cube
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+        0, 1, &descriptorSets[base + 4], 0, nullptr);
+    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
 
     vkCmdEndRendering(cmd);
 
@@ -1041,49 +1058,97 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
 /////////////////////////////////////////////////////
 
 void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
+    // --- time
     static auto start = std::chrono::high_resolution_clock::now();
-    auto now = std::chrono::high_resolution_clock::now();
-    float t = std::chrono::duration<float>(now - start).count();
+    float t = std::chrono::duration<float>(
+        std::chrono::high_resolution_clock::now() - start).count();
 
-    // Camera
-    glm::vec3 eye(6.0f, 6.0f, 6.0f);
+    // --- camera
+    glm::vec3 eye(8.0f, 5.0f, 8.0f);
     glm::vec3 center(0.0f, 0.0f, 0.0f);
     glm::vec3 up(0.0f, 1.0f, 0.0f);
 
     glm::mat4 view = glm::lookAt(eye, center, up);
     glm::mat4 proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height,
-        0.1f, 50.0f);
-    proj[1][1] *= -1;
+        0.1f, 100.0f);
+    proj[1][1] *= -1.0f; // Vulkan clip space Y flip
 
-    // Pillar: scale only, at origin
-    glm::mat4 pillarModel = glm::scale(glm::mat4(1.0f), glm::vec3(0.3f, 3.0f, 0.3f));
+    // --- scene parameters
+    const float pillarX = 2.5f;   // half distance between pillars
+    const float pillarH = 3.2f;   // pillar height (scale Y)
+    const float pillarR = 0.30f;  // pillar radius (scale X/Z)
 
-    // Orbiting cube:
-    // 1) identity
-    // 2) rotation over time (around Y)
-    glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), t * glm::radians(90.0f), glm::vec3(0, 1, 0));
-    // 3) translation after rotation to push away from origin
-    glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 0.0f));
-    // 4) combined TF = Translation * Rotation  (GLM post-multiply convention)
-    glm::mat4 orbit = rotation * translation;
-    glm::mat4 cubeModel = orbit * glm::scale(glm::mat4(1.0f), glm::vec3(0.4f));
+    const float groundW = 9.0f;   // ground plane scale X
+    const float groundD = 7.0f;   // ground plane scale Z
+    const float groundT = 0.08f;  // ground thickness (scale Y)
+    const float groundY = -1.0f;  // ground vertical offset
 
-    // Write both UBOs for this frame
-    const uint32_t base = currentImage * 2;
+    const float orbitR = 1.6f;   // orbit radius for cubes
+    const float cubeS = 0.45f;  // cube size
 
-    UniformBufferObject uboPillar{};
-    uboPillar.model = pillarModel;
-    uboPillar.view = view;
-    uboPillar.proj = proj;
-    std::memcpy(uniformBuffersMapped[base + 0], &uboPillar, sizeof(uboPillar));
+    // per-orbiter angular speeds / directions / phases
+    const float omegaL_deg = 60.0f;    // left cube speed (deg/s)
+    const float omegaR_deg = 140.0f;   // right cube speed (deg/s)
+    const float dirL = +1.0f;          // +CCW, -CW
+    const float dirR = -1.0f;          // opposite direction for variety
+    const float phaseL_deg = 0.0f;     // starting phase
+    const float phaseR_deg = 45.0f;
 
-    UniformBufferObject uboCube{};
-    uboCube.model = cubeModel;
-    uboCube.view = view;
-    uboCube.proj = proj;
-    std::memcpy(uniformBuffersMapped[base + 1], &uboCube, sizeof(uboCube));
+    // --- models
+    // ground: translate down, then scale wide & thin
+    glm::mat4 groundModel =
+        glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, groundY, 0.0f)) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(groundW, groundT, groundD));
+
+    // pillars: place at +/- pillarX along X, tall & thin
+    glm::mat4 pillarLModel =
+        glm::translate(glm::mat4(1.0f), glm::vec3(-pillarX, 0.0f, 0.0f)) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(pillarR, pillarH, pillarR));
+
+    glm::mat4 pillarRModel =
+        glm::translate(glm::mat4(1.0f), glm::vec3(+pillarX, 0.0f, 0.0f)) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(pillarR, pillarH, pillarR));
+
+    // orbit helper (GLM post-multiply: rightmost happens first)
+    auto orbitMatrix = [&](float omega_deg, float dir, float phase_deg) -> glm::mat4 {
+        float angleRad = glm::radians(phase_deg + dir * omega_deg * t);
+        glm::mat4 rot = glm::rotate(glm::mat4(1.0f), angleRad, glm::vec3(0, 1, 0));
+        glm::mat4 push = glm::translate(glm::mat4(1.0f), glm::vec3(orbitR, 0.0f, 0.0f));
+        return rot * push; // translate, then rotate about origin
+        };
+
+    // centers for each orbiter (at each pillar)
+    glm::mat4 centerL = glm::translate(glm::mat4(1.0f), glm::vec3(-pillarX, 0.0f, 0.0f));
+    glm::mat4 centerR = glm::translate(glm::mat4(1.0f), glm::vec3(+pillarX, 0.0f, 0.0f));
+
+    // orbiting cubes: center * orbit * scale
+    glm::mat4 cubeLModel =
+        centerL * orbitMatrix(omegaL_deg, dirL, phaseL_deg) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(cubeS));
+
+    glm::mat4 cubeRModel =
+        centerR * orbitMatrix(omegaR_deg, dirR, phaseR_deg) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(cubeS));
+
+    // --- write UBOs (5 objects per frame: ground, pillarL, pillarR, cubeL, cubeR)
+    const uint32_t base = currentImage * 5;
+
+    auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
+        UniformBufferObject u{};
+        u.model = model;
+        u.view = view;
+        u.proj = proj;
+        std::memcpy(uniformBuffersMapped[base + idx], &u, sizeof(u));
+        };
+
+    writeUBO(0, groundModel);
+    writeUBO(1, pillarLModel);
+    writeUBO(2, pillarRModel);
+    writeUBO(3, cubeLModel);
+    writeUBO(4, cubeRModel);
 }
+
 
 /////////////////////////////////////////////////////
 // Helpers

@@ -76,6 +76,14 @@ command buffer recording to transition the depth image and attach it for renderi
 my existing scaled pillar from Exercise 1 stayed fixed at the origin, the cube orbited smoothly around it, and the depth testing allowed it 
 to disappear behind the pillar as it moved through its orbit.
 
+To complete the exercise, I extended the hierarchical transformation scene by adding two tall, scaled pillars and two 
+smaller cubes that orbit around them at different speeds. Each pillar was positioned symmetrically along the X-axis, 
+while the cubes were given individual rotation rates, directions, and phases to create independent orbital motion around
+their respective pillars. I updated the uniform buffers to store five model matrices per frame—one for the ground plane, 
+two for the pillars, and two for the orbiting cubes, and issued separate draw calls for each object. This produced a 
+dynamic scene where both cubes revolve smoothly around their pillars, correctly passing behind them due to depth testing, 
+demonstrating full control over hierarchical transformations and object animation. 
+
 ```c++
 glm::mat4 pillarModel = glm::scale(glm::mat4(1.0f), glm::vec3(0.3f, 3.0f, 0.3f));
 ```
@@ -89,16 +97,41 @@ glm::mat4 translation = glm::translate(glm::mat4(1.0f),
 
 glm::mat4 orbit = rotation * translation;
 glm::mat4 cubeModel = orbit * glm::scale(glm::mat4(1.0f), glm::vec3(0.4f));
-
 ```
-
+-- Multiple draw calls per frame:
 ```c++
-
+for (uint32_t i = 0; i < objectCount; ++i) {
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+                            0, 1, &descriptorSets[base + i], 0, nullptr);
+    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+}
 ```
+-- Writing multiple UBOs per frame:
 ```c++
+const uint32_t base = currentImage * objectCount; // objectCount = e.g. 5
 
+auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
+    UniformBufferObject ubo{};
+    ubo.model = model;
+    ubo.view  = view;
+    ubo.proj  = proj;
+    std::memcpy(uniformBuffersMapped[base + idx], &ubo, sizeof(ubo));
+};
 ```
+- Transformation Logic
 ```c++
+// Time variable for animation
+static auto start = std::chrono::high_resolution_clock::now();
+float t = std::chrono::duration<float>(
+    std::chrono::high_resolution_clock::now() - start).count();
+
+// Generic orbit function
+auto orbitMatrix = [&](float speedDeg, float direction, float phaseDeg) {
+    float angle = glm::radians(phaseDeg + direction * speedDeg * t);
+    glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0));
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(orbitRadius, 0.0f, 0.0f));
+    return rotation * translation; // GLM post-multiply: translate then rotate about origin
+};
 
 ```
 
@@ -107,10 +140,23 @@ glm::mat4 cubeModel = orbit * glm::scale(glm::mat4(1.0f), glm::vec3(0.4f));
 ![](Images/ex2_single.gif)
 
 2. Double Tower and Cube:
-![](Images/ex2_double_tower.png)
+![](Images/ex2_double.png)
 
 **Reflection:**
+In this lab, I built upon the scaling transformation from Exercise 1 to implement hierarchical transformations using 
+translation, rotation, and scaling matrices in combination. I created two tall, thin pillars positioned symmetrically 
+along the X-axis and added two smaller cubes that orbit around them at different speeds. By carefully ordering the 
+transformation matrices (rotation * translation), I achieved correct circular motion, demonstrating how matrix
+multiplication order directly affects spatial behavior. Implementing separate uniform buffers for each object allowed me 
+to manage multiple model matrices independently within the same frame, which was essential for rendering several moving 
+objects simultaneously.
 
+A key learning outcome was understanding the hierarchical relationship between objects, the cubes’ motion depended on 
+their respective pillar positions, reinforcing the concept of parent-child transformation. Adding depth testing completed 
+the visual realism by allowing objects to correctly pass behind one another, showing how the GPU uses depth comparisons 
+to handle occlusion. This exercise helped me solidify my understanding of the model-view-projection (MVP) matrix pipeline, 
+frame-level uniform buffer management, and real-time animation in Vulkan. It also highlighted the importance of organizing 
+transformation logic and resource management when scaling up from a single object to a dynamic scene.
 
 ### EXERCISE 3: PROCEDURAL CYLINDER
 #### Goal: Procedurally generate and render a cylinder mesh.
