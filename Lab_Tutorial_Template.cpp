@@ -1054,7 +1054,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     glm::mat4 proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height,
         0.1f, 50.0f);
-    proj[1][1] *= -1; // Vulkan Y flip
+    proj[1][1] *= -1;
 
     // Pillar: scale only, at origin
     glm::mat4 pillarModel = glm::scale(glm::mat4(1.0f), glm::vec3(0.3f, 3.0f, 0.3f));

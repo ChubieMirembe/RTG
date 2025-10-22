@@ -58,15 +58,49 @@ transformations work in 3D graphics and how they can be used to create different
 ### EXERCISE 2:HIERARCHICAL TRANSFORMATIONS
 #### Goal: Apply scaling, translation, and rotation transformations to achieve the following visual outcomes
 
-
 **Solution:**
+I already had the scaling transformation from Exercise 1, where I stretched the cube into a tall, thin pillar at the origin, so I began 
+Exercise 2 by focusing on the rotation and translation needed for the orbiting cube. I reused the scaled pillar from Exercise 1 as the 
+central object and created a second model matrix for the smaller cube. Each frame, I updated two uniform buffers—one for the pillar and 
+one for the orbiting cube—and in the command buffer, I bound the two descriptor sets and issued separate draw calls so both objects would 
+render with their respective transformations. In `updateUniformBuffer()`, I changed the transformation order to rotation * translation, 
+as the other way round was just causing the cube to rotate in place. So when I corrected this, the cube rotate around the pillar, creating 
+a proper circular orbit rather than spinning in place. 
+
+After confirming that the cube’s movement around the pillar was correct, I added depth testing so the cube could pass behind it realistically. 
+I introduced new Vulkan resources for depth: a depth image, its memory, and an image view, along with helper functions like `findDepthFormat()` 
+and `createDepthResources()`. I integrated depth creation after `createImageViews()` during initialization and swapchain recreation 
+and cleaned it up in `cleanupSwapChain()`. Then, in the graphics pipeline, I enabled depth testing and writing with a 
+VkPipelineDepthStencilStateCreateInfo block and included the chosen depth format in the dynamic rendering setup. Finally, I modified the 
+command buffer recording to transition the depth image and attach it for rendering so it would clear and update each frame. With those changes, 
+my existing scaled pillar from Exercise 1 stayed fixed at the origin, the cube orbited smoothly around it, and the depth testing allowed it 
+to disappear behind the pillar as it moved through its orbit.
+
+```c++
+glm::mat4 pillarModel = glm::scale(glm::mat4(1.0f), glm::vec3(0.3f, 3.0f, 0.3f));
+```
+```c++
+glm::mat4 rotation = glm::rotate(glm::mat4(1.0f),
+                     time * glm::radians(90.0f),
+                     glm::vec3(0.0f, 1.0f, 0.0f));
+
+glm::mat4 translation = glm::translate(glm::mat4(1.0f),
+                        glm::vec3(2.0f, 0.0f, 0.0f));
+
+glm::mat4 orbit = rotation * translation;
+glm::mat4 cubeModel = orbit * glm::scale(glm::mat4(1.0f), glm::vec3(0.4f));
+
+```
+
 ```c++
 
 ```
 ```c++
 
 ```
+```c++
 
+```
 
 **Output:**
 1. Single Towwer and Cube:
@@ -87,6 +121,15 @@ transformations work in 3D graphics and how they can be used to create different
 ```
 ```c++
 ```
+**Solution:**
+
+```c++
+```
+```c++
+```
+
+
+
 
 **Output:**
 
