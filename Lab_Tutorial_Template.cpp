@@ -1046,7 +1046,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float t = std::chrono::duration<float>(now - start).count();
 
     // Camera
-    glm::vec3 eye(6.0f, 4.0f, 6.0f);
+    glm::vec3 eye(6.0f, 6.0f, 6.0f);
     glm::vec3 center(0.0f, 0.0f, 0.0f);
     glm::vec3 up(0.0f, 1.0f, 0.0f);
 
