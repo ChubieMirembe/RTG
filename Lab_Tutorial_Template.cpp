@@ -1,5 +1,5 @@
-//==================================================
-// Vulkan ver 1.3 � Exercise 2 with Depth Testing
+﻿//==================================================
+// Vulkan ver 1.3 — Exercise 4: Sun–Earth–Moon (Depth On)
 //==================================================
 
 #define GLFW_INCLUDE_VULKAN
@@ -101,10 +101,44 @@ const std::vector<uint16_t> Quad_indices = {
 std::vector<Vertex>   vertices;
 std::vector<uint16_t> indices;
 
-static void loadModel() {
-    vertices = Quad_vertices;
-    indices = Quad_indices;
+void generateSphere(std::vector<Vertex>& vertices, std::vector<uint16_t>& indices,
+    float radius = 1.0f, uint32_t stacks = 32, uint32_t slices = 32) {
+    vertices.clear();
+    indices.clear();
+
+    for (uint32_t i = 0; i <= stacks; ++i) {
+        float v = float(i) / stacks;
+        float phi = v * glm::pi<float>();
+        for (uint32_t j = 0; j <= slices; ++j) {
+            float u = float(j) / slices;
+            float theta = u * glm::two_pi<float>();
+            float x = std::sin(phi) * std::cos(theta);
+            float y = std::cos(phi);
+            float z = std::sin(phi) * std::sin(theta);
+            vertices.push_back({ glm::vec3(radius * x, radius * y, radius * z),
+                                 glm::vec3((x + 1) * 0.5f, (y + 1) * 0.5f, (z + 1) * 0.5f) });
+        }
+    }
+
+    for (uint32_t i = 0; i < stacks; ++i) {
+        for (uint32_t j = 0; j < slices; ++j) {
+            uint32_t first = i * (slices + 1) + j;
+            uint32_t second = first + slices + 1;
+            indices.push_back(first);
+            indices.push_back(second);
+            indices.push_back(first + 1);
+            indices.push_back(second);
+            indices.push_back(second + 1);
+            indices.push_back(first + 1);
+        }
+    }
 }
+
+
+static void loadModel() {
+    generateSphere(vertices, indices, 1.0f, 32, 32);
+}
+
 
 /////////////////////////////////////////////////////
 // Debug utils
@@ -174,7 +208,7 @@ private:
     VkBuffer indexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory indexBufferMemory = VK_NULL_HANDLE;
 
-    // UBOs � 2 per frame (pillar + orbit cube)
+    // UBOs — [EX4 CHANGE] 3 per frame (Sun, Earth, Moon)
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
@@ -214,9 +248,9 @@ private:
     void createCommandPool();
     void createVertexBuffer();
     void createIndexBuffer();
-    void createUniformBuffers();     // 2 per frame
-    void createDescriptorPool();     // capacity for 2 per frame
-    void createDescriptorSets();     // write 2 per frame
+    void createUniformBuffers();     // [EX4 CHANGE] 3 per frame
+    void createDescriptorPool();     // [EX4 CHANGE] capacity for 3 per frame
+    void createDescriptorSets();     // [EX4 CHANGE] write 3 per frame
     void createDepthResources();     // depth
     void createCommandBuffers();
     void createSyncObjects();
@@ -226,7 +260,7 @@ private:
     void recreateSwapChain();
     void cleanupSwapChain();
     void recordCommandBuffer(VkCommandBuffer cmd, uint32_t imageIndex);
-    void updateUniformBuffer(uint32_t currentImage);
+    void updateUniformBuffer(uint32_t currentImage); // [EX4 CHANGE] Sun→Earth→Moon
 
     // Helpers
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
@@ -278,7 +312,7 @@ void HelloTriangleApplication::run() {
 void HelloTriangleApplication::initWindow() {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan 1.3 - Exercise 2 (Depth)", nullptr, nullptr);
+    window = glfwCreateWindow(WIDTH, HEIGHT, "Lab 3 - Exercise 4", nullptr, nullptr);
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 }
@@ -298,10 +332,10 @@ void HelloTriangleApplication::initVulkan() {
     loadModel();
     createVertexBuffer();
     createIndexBuffer();
-    createUniformBuffers();
-    createDescriptorPool();
-    createDescriptorSets();
-    createDepthResources();         // depth created after swap extent is known
+    createUniformBuffers();    // [EX4 CHANGE] 3 per frame
+    createDescriptorPool();    // [EX4 CHANGE] for 3 per frame
+    createDescriptorSets();    // [EX4 CHANGE] write 3 per frame
+    createDepthResources();    // depth created after swap extent is known
     createCommandBuffers();
     createSyncObjects();
 }
@@ -539,7 +573,7 @@ void HelloTriangleApplication::createDescriptorSetLayout() {
     VkDescriptorSetLayoutBinding ubo{};
     ubo.binding = 0;
     ubo.descriptorCount = 1;
-    ubo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    ubo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // simple per-object UBOs
     ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
     VkDescriptorSetLayoutCreateInfo info{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
@@ -642,7 +676,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     gp.pViewportState = &vp;
     gp.pRasterizationState = &rs;
     gp.pMultisampleState = &ms;
-    gp.pDepthStencilState = &ds;          // enable depth test/write
+    gp.pDepthStencilState = &ds;          // enable depth
     gp.pColorBlendState = &cb;
     gp.pDynamicState = &dyn;
     gp.layout = pipelineLayout;
@@ -716,7 +750,7 @@ void HelloTriangleApplication::createIndexBuffer() {
 }
 
 void HelloTriangleApplication::createUniformBuffers() {
-    const size_t total = MAX_FRAMES_IN_FLIGHT * 5; // pillar + orbit cube per frame
+    const size_t total = MAX_FRAMES_IN_FLIGHT * 3; // [EX4 CHANGE] Sun + Earth + Moon per frame
     VkDeviceSize sz = sizeof(UniformBufferObject);
 
     uniformBuffers.resize(total);
@@ -732,7 +766,7 @@ void HelloTriangleApplication::createUniformBuffers() {
 }
 
 void HelloTriangleApplication::createDescriptorPool() {
-    const uint32_t totalSets = MAX_FRAMES_IN_FLIGHT * 5;
+    const uint32_t totalSets = MAX_FRAMES_IN_FLIGHT * 3; // [EX4 CHANGE]
 
     VkDescriptorPoolSize pool{};
     pool.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -748,7 +782,7 @@ void HelloTriangleApplication::createDescriptorPool() {
 }
 
 void HelloTriangleApplication::createDescriptorSets() {
-    const uint32_t totalSets = MAX_FRAMES_IN_FLIGHT * 5;
+    const uint32_t totalSets = MAX_FRAMES_IN_FLIGHT * 3; // [EX4 CHANGE]
 
     std::vector<VkDescriptorSetLayout> layouts(totalSets, descriptorSetLayout);
     VkDescriptorSetAllocateInfo ai{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
@@ -970,7 +1004,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
     color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    color.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+    color.clearValue.color = { {0.05f, 0.07f, 0.12f, 1.0f} }; // dark bluish
 
     VkRenderingAttachmentInfo depth{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
     depth.imageView = depthImageView;
@@ -1004,33 +1038,22 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
     vkCmdBindVertexBuffers(cmd, 0, 1, vbs, offsets);
     vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-    const uint32_t base = currentFrame * 5;
+    const uint32_t base = currentFrame * 3; // [EX4 CHANGE]
 
-    // 0) ground
+    // 0) Sun
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
         0, 1, &descriptorSets[base + 0], 0, nullptr);
     vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
-    // 1) left pillar
+    // 1) Earth
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
         0, 1, &descriptorSets[base + 1], 0, nullptr);
     vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
-    // 2) right pillar
+    // 2) Moon
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
         0, 1, &descriptorSets[base + 2], 0, nullptr);
     vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
-    // 3) left cube
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
-        0, 1, &descriptorSets[base + 3], 0, nullptr);
-    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
-    // 4) right cube
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
-        0, 1, &descriptorSets[base + 4], 0, nullptr);
-    vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
 
     vkCmdEndRendering(cmd);
 
@@ -1054,118 +1077,107 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
 }
 
 /////////////////////////////////////////////////////
-// UBO update � Exercise 2 transforms
+// UBO update — Exercise 4 transforms (Sun→Earth→Moon)
 /////////////////////////////////////////////////////
 
 void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
-    // --- time
+    // --- Time tracking
     static auto start = std::chrono::high_resolution_clock::now();
     float t = std::chrono::duration<float>(
         std::chrono::high_resolution_clock::now() - start).count();
 
-    // --- camera
-    glm::vec3 eye(8.0f, 5.0f, 8.0f);
+    // --- Camera setup
+    glm::vec3 eye(12.0f, 7.0f, 12.0f);
     glm::vec3 center(0.0f, 0.0f, 0.0f);
-    glm::vec3 upWorld(0.0f, 1.0f, 0.0f);
+    glm::vec3 up(0.0f, 1.0f, 0.0f);
 
-    glm::mat4 view = glm::lookAt(eye, center, upWorld);
+    glm::mat4 view = glm::lookAt(eye, center, up);
     glm::mat4 proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height,
-        0.1f, 100.0f);
-    proj[1][1] *= -1.0f; // Vulkan clip space Y flip
+        0.1f, 200.0f);
+    proj[1][1] *= -1.0f; // Vulkan Y-flip
 
-    // --- scene parameters
-    const float pillarX = 2.5f;   // half distance between pillars
-    const float pillarH = 3.2f;   // pillar height (scale Y)
-    const float pillarR = 0.30f;  // pillar radius (scale X/Z)
+    // --- Orbital & rotation speeds
+    float sunSpinDeg = 10.0f;
+    float earthOrbitDeg = 40.0f;
+    float earthSpinDeg = 120.0f;
+    float moonOrbitDeg = 200.0f;
+    float moonSpinDeg = 200.0f;   // same as orbit → tidal lock
 
-    const float groundW = 9.0f;   // ground plane scale X
-    const float groundD = 7.0f;   // ground plane scale Z
-    const float groundT = 0.08f;  // ground thickness (scale Y)
-    const float groundY = -1.0f;  // ground vertical offset
+    // --- Distances and sizes
+    float earthRadius = 4.0f;   // Sun→Earth
+    float moonRadius = 1.6f;   // Earth→Moon
 
-    const float orbitR = 1.6f;    // orbit radius
-    // stick dimensions (thin rod so orientation is visible)
-    const float stickW = 0.18f;   // X thickness
-    const float stickH = 0.18f;   // Y thickness
-    const float stickL = 1.10f;   // Z length (along local +Z)
+    float sunScale = 1.6f;
+    float earthScale = .6f;
+    float moonScale = 0.18f;
 
-    // per-orbiter angular speeds / directions / phases
-    const float omegaL_deg = 60.0f;    // left stick speed (deg/s)
-    const float omegaR_deg = 140.0f;   // right stick speed (deg/s)
-    const float dirL = +1.0f;          // +CCW, -CW
-    const float dirR = -1.0f;          // opposite direction for variety
-    const float phaseL_deg = 0.0f;     // starting phase
-    const float phaseR_deg = 45.0f;
+    // --- Orbit tilts
+    float earthTiltDeg = 15.0f;
+    float moonTiltDeg = 5.0f;
 
-    // --- static models
-    glm::mat4 groundModel =
-        glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, groundY, 0.0f)) *
-        glm::scale(glm::mat4(1.0f), glm::vec3(groundW, groundT, groundD));
+    // --- Convert to radians × time
+    float sunSpin = glm::radians(sunSpinDeg) * t;
+    float earthOrbit = glm::radians(earthOrbitDeg) * t;
+    float earthSpin = glm::radians(earthSpinDeg) * t;
+    float moonOrbit = glm::radians(moonOrbitDeg) * t;
+    float moonSpin = glm::radians(moonSpinDeg) * t;
 
-    glm::mat4 pillarLModel =
-        glm::translate(glm::mat4(1.0f), glm::vec3(-pillarX, 0.0f, 0.0f)) *
-        glm::scale(glm::mat4(1.0f), glm::vec3(pillarR, pillarH, pillarR));
+    // --------------------------------------------------
+    // SUN (root)
+    // --------------------------------------------------
+    glm::mat4 Sun =
+        glm::rotate(glm::mat4(1.0f), sunSpin, glm::vec3(0, 1, 0)) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(sunScale));
 
-    glm::mat4 pillarRModel =
-        glm::translate(glm::mat4(1.0f), glm::vec3(+pillarX, 0.0f, 0.0f)) *
-        glm::scale(glm::mat4(1.0f), glm::vec3(pillarR, pillarH, pillarR));
+    // --------------------------------------------------
+    // EARTH (relative to Sun)
+    // 1) Start with Sun
+    // 2) Orbital rotation
+    // 3) Translation (radius)
+    // 4) Axial rotation
+    // 5) Scale
+    // --------------------------------------------------
+    glm::mat4 Earth =
+        Sun *
+        glm::rotate(glm::mat4(1.0f), glm::radians(earthTiltDeg), glm::vec3(1, 0, 0)) *
+        glm::rotate(glm::mat4(1.0f), earthOrbit, glm::vec3(0, 1, 0)) *
+        glm::translate(glm::mat4(1.0f), glm::vec3(earthRadius, 0, 0)) *
+        glm::rotate(glm::mat4(1.0f), earthSpin, glm::vec3(0, 1, 0)) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(earthScale));
 
-    // --- helper to build a tangent-aligned stick model at a given center
-    auto tangentStickAt = [&](const glm::vec3& center, float omegaDeg, float dir, float phaseDeg) -> glm::mat4 {
-        // angle and position on circle (Y=0 plane)
-        float angle = glm::radians(phaseDeg + dir * omegaDeg * t);
-        float x = center.x + orbitR * std::cos(angle);
-        float z = center.z + orbitR * std::sin(angle);
-        glm::vec3 pos(x, center.y, z);
+    // --------------------------------------------------
+    // MOON (relative to Earth)
+    // 1) Start with Earth's final transform
+    // 2) Apply Moon's orbital rotation + translation
+    // 3) Apply Moon's axial spin (tidal lock)
+    // 4) Apply scale
+    // --------------------------------------------------
+    glm::mat4 Moon =
+        Earth *
+        glm::rotate(glm::mat4(1.0f), glm::radians(moonTiltDeg), glm::vec3(0, 0, 1)) *
+        glm::rotate(glm::mat4(1.0f), moonOrbit, glm::vec3(0, 1, 0)) *
+        glm::translate(glm::mat4(1.0f), glm::vec3(moonRadius, 0, 0)) *
+        glm::rotate(glm::mat4(1.0f), -moonOrbit, glm::vec3(0, 1, 0)) *  // tidal lock
+        glm::scale(glm::mat4(1.0f), glm::vec3(moonScale));
 
-        // tangent direction of the circular path at this angle
-        // derivative of (cos, sin) is (-sin, cos)
-        glm::vec3 forward = glm::normalize(glm::vec3(-std::sin(angle), 0.0f, std::cos(angle)));
-
-        // build an orthonormal basis (right, up, forward) with world up preference
-        glm::vec3 right = glm::normalize(glm::cross(upWorld, forward));
-        // handle the rare case of near-parallel up/forward
-        if (glm::dot(right, right) < 1e-6f) right = glm::vec3(1, 0, 0);
-        glm::vec3 up = glm::normalize(glm::cross(forward, right));
-
-        // rotation matrix from basis (GLM is column-major: columns are basis vectors)
-        glm::mat4 R(1.0f);
-        R[0] = glm::vec4(right, 0.0f); // local +X
-        R[1] = glm::vec4(up, 0.0f); // local +Y
-        R[2] = glm::vec4(forward, 0.0f); // local +Z points along tangent
-
-        // scale to a thin stick along local +Z
-        glm::mat4 S = glm::scale(glm::mat4(1.0f), glm::vec3(stickW, stickH, stickL));
-
-        // translate to orbit position, then orient, then scale
-        return glm::translate(glm::mat4(1.0f), pos) * R * S;
-        };
-
-    // centers for each orbiter (at each pillar position)
-    glm::vec3 centerL(-pillarX, 0.0f, 0.0f);
-    glm::vec3 centerR(+pillarX, 0.0f, 0.0f);
-
-    // build tangent-aligned stick models
-    glm::mat4 stickLModel = tangentStickAt(centerL, omegaL_deg, dirL, phaseL_deg);
-    glm::mat4 stickRModel = tangentStickAt(centerR, omegaR_deg, dirR, phaseR_deg);
-
-    // --- write UBOs (5 objects per frame: ground, pillarL, pillarR, stickL, stickR)
-    const uint32_t base = currentImage * 5;
+    // --------------------------------------------------
+    // UBO writes (Sun, Earth, Moon)
+    // --------------------------------------------------
+    const uint32_t base = currentImage * 3;
 
     auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
         UniformBufferObject u{};
-        u.model = model; u.view = view; u.proj = proj;
+        u.model = model;
+        u.view = view;
+        u.proj = proj;
         std::memcpy(uniformBuffersMapped[base + idx], &u, sizeof(u));
         };
 
-    writeUBO(0, groundModel);
-    writeUBO(1, pillarLModel);
-    writeUBO(2, pillarRModel);
-    writeUBO(3, stickLModel);   // was cubeLModel
-    writeUBO(4, stickRModel);   // was cubeRModel
+    writeUBO(0, Sun);
+    writeUBO(1, Earth);
+    writeUBO(2, Moon);
 }
-
 
 
 /////////////////////////////////////////////////////

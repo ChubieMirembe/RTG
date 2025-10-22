@@ -220,27 +220,74 @@ that reflects an object’s direction of travel. Building on the previous exercise
 vectors from circular motion using trigonometric relationships and use them to dynamically orient an object along its path.
 I learned how to construct an orthonormal basis (right, up, and forward vectors) to define an object’s rotation in 3D 
 space and how matrix composition (translate * rotate * scale) controls both position and orientation. Implementing this 
-also helped me understand how to manage numerical stability by checking vector lengths with glm::dot(right, right) before 
+also helped me understand how to manage numerical stability by checking vector lengths with `glm::dot(right, right)` before 
 normalization. More importantly, this exercise reinforced the idea that small changes in transformation logic can 
 significantly affect how an object behaves in a scene, and that hierarchical models can be reused and expanded to create 
 more complex, realistic animations.
 
-### EXERCISE 4:  WIREFRAME RENDERING
-#### Goal: Refactor the procedural generation code into a reusable C++ class or namespace, similar to the GeometryGenerator provided at d3d12book/Chapter 7 Drawing in Direct3D 
-#### Part II at master ? d3dcoder/d3d12book using the procedural geometric models defined in GeometryGenerator.h, GeometryGenerator.cp
+### EXERCISE 4:ANIMATING A SOLAR SYSTEM
+#### Goal: Create a simple solar system with a Sun, Earth, and Moon. This is a classic exercise in hierarchical transformations.
 
 **Solution:**
+In this task, I created a hierarchical transformation system to simulate a simple Sun–Earth–Moon model. The Sun was positioned at the
+origin, given a slow axial rotation, and scaled larger to represent its size. The Earth’s transformation was built relative to the 
+Sun’s by applying an orbital rotation around the Sun, a translation to set its orbital distance, a faster self-rotation to simulate 
+day and night, and a smaller scale to reflect its relative size. The Moon’s transformation was then defined relative to the Earth’s 
+final position, orbiting around it at a smaller radius and reduced scale. I also implemented an optional inverse rotation for tidal 
+locking, ensuring the Moon always faced the Earth. The model matrices for all three bodies were written to uniform buffers and drawn 
+in sequence, with depth testing used to maintain correct visual layering. This structure successfully demonstrated hierarchical motion, 
+where each object’s transformation depended on its parent, creating a smooth and visually coherent orbital system.
+
+- Sun
 ```c++
+float sunScale   = 1.6f;
+
+glm::mat4 Sun =
+    glm::rotate(glm::mat4(1.0f), sunSpin, glm::vec3(0,1,0)) *  
+    glm::scale (glm::mat4(1.0f), glm::vec3(sunScale));         
+- Eath Transformation:
+```c++
+float earthRadius = 4.0f;  
+float earthScale  = 0.6f;   
+float earthTiltDeg= 15.0f; 
+
+glm::mat4 Earth =
+    Sun *                                                              
+    glm::rotate(glm::mat4(1.0f), glm::radians(earthTiltDeg), glm::vec3(1,0,0)) * 
+    glm::rotate(glm::mat4(1.0f), earthOrbit, glm::vec3(0,1,0)) *        
+    glm::translate(glm::mat4(1.0f), glm::vec3(earthRadius, 0, 0)) *     
+    glm::rotate(glm::mat4(1.0f), earthSpin,  glm::vec3(0,1,0)) *       
+    glm::scale (glm::mat4(1.0f), glm::vec3(earthScale));                
 
 ```
+- Moon Transformation:
 ```c++
+float moonRadius = 1.2f;   
+float moonScale  = 0.25f; 
+float moonTiltDeg= 5.0f;   
 
+glm::mat4 Moon =
+    Earth *                                                           
+    glm::rotate(glm::mat4(1.0f), glm::radians(moonTiltDeg), glm::vec3(0,0,1)) *
+    glm::rotate(glm::mat4(1.0f), moonOrbit, glm::vec3(0,1,0)) *      
+    glm::translate(glm::mat4(1.0f), glm::vec3(moonRadius, 0, 0)) *    
+    glm::scale (glm::mat4(1.0f), glm::vec3(moonScale));               
 ```
 **Output:**
-
+![](Images/ex4.png)
 
 **Reflection:**
+Through this exercise, I learned how hierarchical transformations work in practice and how parent-child relationships determine the 
+position and orientation of complex multi-object systems. I saw how matrix multiplication order affects the final motion, for example, 
+rotating before translating produces an orbit, while translating first only moves the object in a straight line. I also understood 
+how local and world coordinate spaces interact: the Moon’s transformation depends on Earth’s, and Earth’s depends on the Sun’s. This 
+demonstrated how a single change in the parent matrix propagates down the hierarchy. Additionally, I learned to balance visual and 
+physical scaling, choosing orbital radii and rotation speeds that are not realistic in size but make motion readable in a single 
+camera view. The exercise deepened my understanding of using `glm::rotate`, `glm::translate`, and `glm::scale` together, and showed 
+how small adjustments to transform order or scale can dramatically change the scene’s behaviour.
 
+Overall, I now have a much clearer grasp of hierarchical modelling, transformation composition, and how to simulate planetary systems
+using only matrix operations.
 
 
 ### EXERCISE 5: LOADING EXTERNAL MODELS WITH ASSIMP
