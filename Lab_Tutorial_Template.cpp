@@ -304,6 +304,20 @@ private:
         VkDebugUtilsMessageTypeFlagsEXT type,
         const VkDebugUtilsMessengerCallbackDataEXT* data,
         void* userData);
+
+    // --- Simple keyboard camera state (OPTIONS: tweak these)
+    glm::vec3 camPos = glm::vec3(12.0f, 7.0f, 12.0f); // start position
+    float     yawDeg = -135.0f;  // OPTIONS: initial yaw
+    float     pitchDeg = -15.0f;   // OPTIONS: initial pitch
+    glm::vec3 camUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    float moveSpeed = 6.0f;   // OPTIONS: movement speed (units/sec)
+    float turnSpeed = 60.0f;  // OPTIONS: turn speed (deg/sec)
+
+    // --- Helpers
+    glm::vec3 cameraForward() const;
+    void processCameraInput(float dt);
+
 };
 
 /////////////////////////////////////////////////////
@@ -355,6 +369,51 @@ void HelloTriangleApplication::mainLoop() {
     }
     vkDeviceWaitIdle(device);
 }
+
+// --------------------------------------------------------------
+// Camera forward vector from yaw/pitch (right-handed, Y-up)
+// --------------------------------------------------------------
+glm::vec3 HelloTriangleApplication::cameraForward() const {
+    float yaw = glm::radians(yawDeg);
+    float pitch = glm::radians(pitchDeg);
+
+    float cp = std::cos(pitch), sp = std::sin(pitch);
+    float cy = std::cos(yaw), sy = std::sin(yaw);
+
+    // Forward in world space (XZ yaw, pitch around X)
+    return glm::normalize(glm::vec3(cy * cp, sp, sy * cp));
+}
+
+// --------------------------------------------------------------
+// Per-frame keyboard camera control (WASD + QE + Arrow keys)
+// --------------------------------------------------------------
+void HelloTriangleApplication::processCameraInput(float dt) {
+    if (!window) return;
+
+    // Derive basis from current yaw/pitch and up
+    glm::vec3 f = cameraForward();                 // forward
+    glm::vec3 r = glm::normalize(glm::cross(f, camUp)); // right
+
+    // --- Translation
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camPos += f * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camPos -= f * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camPos += r * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camPos -= r * moveSpeed * dt;
+
+    // Elevation
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camPos += camUp * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camPos -= camUp * moveSpeed * dt;
+
+    // --- Rotation
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) yawDeg -= turnSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yawDeg += turnSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) pitchDeg += turnSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) pitchDeg -= turnSpeed * dt;
+
+    // Clamp pitch to avoid gimbal flip
+    pitchDeg = glm::clamp(pitchDeg, -89.0f, 89.0f);
+}
+
 
 void HelloTriangleApplication::cleanup() {
     cleanupSwapChain();
@@ -1088,16 +1147,29 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
 // UBO update — Exercise 4 transforms (Sun→Earth→Moon)
 /////////////////////////////////////////////////////
 
+// --------------------------------------------------------------
+// UBO update — Exercise 4/5 with keyboard camera
+//  - Calls processCameraInput(dt)
+//  - Writes model + eye/center/up + cam (fovy,aspect,near,far)
+// --------------------------------------------------------------
 void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
-    // --- Time
-    static auto start = std::chrono::high_resolution_clock::now();
-    float t = std::chrono::duration<float>(
-        std::chrono::high_resolution_clock::now() - start).count();
+    // --- Delta time (for input & animation)
+    static auto prev = std::chrono::high_resolution_clock::now();
+    auto now = std::chrono::high_resolution_clock::now();
+    float dt = std::chrono::duration<float>(now - prev).count();
+    prev = now;
 
-    // --- Camera params (now sent directly, not as matrices)
-    glm::vec3 eye = { 12.0f, 7.0f, 12.0f };
-    glm::vec3 center = { 0.0f, 0.0f,  0.0f };
-    glm::vec3 up = { 0.0f, 1.0f,  0.0f };
+    // Read keyboard this frame
+    processCameraInput(dt);
+
+    // --- Time for orbits/spins
+    static auto start = std::chrono::high_resolution_clock::now();
+    float t = std::chrono::duration<float>(now - start).count();
+
+    // --- Camera params (shader builds view/proj from these)
+    glm::vec3 eye = camPos;
+    glm::vec3 center = camPos + cameraForward();
+    glm::vec3 up = camUp;
 
     float fovy = glm::radians(45.0f);
     float aspect = swapChainExtent.width / (float)swapChainExtent.height;
@@ -1121,7 +1193,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float earthTiltDeg = 15.0f;
     float moonTiltDeg = 5.0f;
 
-    // --- Angles
+    // --- Angles over time
     float sunSpin = glm::radians(sunSpinDeg) * t;
     float earthOrbit = glm::radians(earthOrbitDeg) * t;
     float earthSpin = glm::radians(earthSpinDeg) * t;
@@ -1132,7 +1204,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
         glm::rotate(glm::mat4(1.0f), sunSpin, glm::vec3(0, 1, 0)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(sunScale));
 
-    // --- Earth (relative to Sun)
+    // --- Earth (relative to Sun): Sun * tilt * orbit * translate * spin * scale
     glm::mat4 Earth =
         Sun *
         glm::rotate(glm::mat4(1.0f), glm::radians(earthTiltDeg), glm::vec3(1, 0, 0)) *
@@ -1141,13 +1213,13 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
         glm::rotate(glm::mat4(1.0f), earthSpin, glm::vec3(0, 1, 0)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(earthScale));
 
-    // --- Moon (relative to Earth) with tidal lock (inverse rotation)
+    // --- Moon (relative to Earth) with tidal lock (inverse spin after translate)
     glm::mat4 Moon =
         Earth *
         glm::rotate(glm::mat4(1.0f), glm::radians(moonTiltDeg), glm::vec3(0, 0, 1)) *
         glm::rotate(glm::mat4(1.0f), moonOrbit, glm::vec3(0, 1, 0)) *
         glm::translate(glm::mat4(1.0f), glm::vec3(moonRadius, 0, 0)) *
-        glm::rotate(glm::mat4(1.0f), -moonOrbit, glm::vec3(0, 1, 0)) * // tidal lock
+        glm::rotate(glm::mat4(1.0f), -moonOrbit, glm::vec3(0, 1, 0)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(moonScale));
 
     // --- Write 3 UBOs (Sun, Earth, Moon) for this frame
@@ -1158,7 +1230,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
         u.model = model;
         u.eye = glm::vec4(eye, 1.0f);
         u.center = glm::vec4(center, 1.0f);
-        u.up = glm::vec4(up, 0.0f);                  // w unused
+        u.up = glm::vec4(up, 0.0f);  // w unused
         u.cam = glm::vec4(fovy, aspect, zNear, zFar);
         std::memcpy(uniformBuffersMapped[base + idx], &u, sizeof(u));
         };
@@ -1167,6 +1239,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     writeUBO(1, Earth);
     writeUBO(2, Moon);
 }
+
 
 
 

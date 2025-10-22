@@ -378,11 +378,191 @@ how small sign or order errors can distort the final image. Most importantly, th
 and GPU: the CPU now provides minimal camera parameters, while the shader performs the heavy transformation work in real time.
 
 ### FURTHER EXPLORATION 
+
+**Solution:**
+To implement the keyboard-controlled camera, I introduced persistent variables for the camera’s position, yaw, and pitch, then 
+calculated the forward direction each frame from those angles. I created a `processCameraInput()` function that reads keyboard input 
+using GLFW — WASD for movement on the ground plane, Q/E for vertical motion, and the arrow keys to adjust rotation. These inputs 
+modify the camera’s position and orientation in real time. The `updateUniformBuffer()` function was updated to call this input handler 
+each frame, compute a new forward vector, and then pass the resulting eye, center, and up vectors to the uniform buffer. The shader 
+uses these parameters to reconstruct the view and projection matrices dynamically. This setup allows smooth, interactive navigation 
+through the 3D scene while preserving the hierarchical Sun–Earth–Moon transformations from the previous exercise.
+
 ```c++
+// --------------------------------------------------------------
+// Camera forward vector from yaw/pitch (right-handed, Y-up)
+// --------------------------------------------------------------
+glm::vec3 HelloTriangleApplication::cameraForward() const {
+    float yaw   = glm::radians(yawDeg);
+    float pitch = glm::radians(pitchDeg);
+
+    float cp = std::cos(pitch), sp = std::sin(pitch);
+    float cy = std::cos(yaw),   sy = std::sin(yaw);
+
+    // Forward in world space (XZ yaw, pitch around X)
+    return glm::normalize(glm::vec3(cy * cp, sp, sy * cp));
+}
 ```
 
 ```c++
+// --------------------------------------------------------------
+// Per-frame keyboard camera control (WASD + QE + Arrow keys)
+// --------------------------------------------------------------
+void HelloTriangleApplication::processCameraInput(float dt) {
+    if (!window) return;
 
+    // Derive basis from current yaw/pitch and up
+    glm::vec3 f = cameraForward();                 // forward
+    glm::vec3 r = glm::normalize(glm::cross(f, camUp)); // right
+
+    // --- Translation
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camPos += f * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camPos -= f * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camPos += r * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camPos -= r * moveSpeed * dt;
+
+    // Elevation
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camPos += camUp * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camPos -= camUp * moveSpeed * dt;
+
+    // --- Rotation
+    if (glfwGetKey(window, GLFW_KEY_LEFT)  == GLFW_PRESS) yawDeg   -= turnSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yawDeg   += turnSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_UP)    == GLFW_PRESS) pitchDeg += turnSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_DOWN)  == GLFW_PRESS) pitchDeg -= turnSpeed * dt;
+
+    // Clamp pitch to avoid gimbal flip
+    pitchDeg = glm::clamp(pitchDeg, -89.0f, 89.0f);
+}
 ```
+```c++
+// --------------------------------------------------------------
+// Per-frame keyboard camera control (WASD + QE + Arrow keys)
+// --------------------------------------------------------------
+void HelloTriangleApplication::processCameraInput(float dt) {
+    if (!window) return;
 
+    // Derive basis from current yaw/pitch and up
+    glm::vec3 f = cameraForward();                 // forward
+    glm::vec3 r = glm::normalize(glm::cross(f, camUp)); // right
+
+    // --- Translation
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camPos += f * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camPos -= f * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camPos += r * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camPos -= r * moveSpeed * dt;
+
+    // Elevation
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camPos += camUp * moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camPos -= camUp * moveSpeed * dt;
+
+    // --- Rotation
+    if (glfwGetKey(window, GLFW_KEY_LEFT)  == GLFW_PRESS) yawDeg   -= turnSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yawDeg   += turnSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_UP)    == GLFW_PRESS) pitchDeg += turnSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_DOWN)  == GLFW_PRESS) pitchDeg -= turnSpeed * dt;
+
+    // Clamp pitch to avoid gimbal flip
+    pitchDeg = glm::clamp(pitchDeg, -89.0f, 89.0f);
+}
+```
+```c++
+// --------------------------------------------------------------
+// UBO update — Exercise 4/5 with keyboard camera
+//  - Calls processCameraInput(dt)
+//  - Writes model + eye/center/up + cam (fovy,aspect,near,far)
+// --------------------------------------------------------------
+void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
+    // --- Delta time (for input & animation)
+    static auto prev = std::chrono::high_resolution_clock::now();
+    auto now = std::chrono::high_resolution_clock::now();
+    float dt = std::chrono::duration<float>(now - prev).count();
+    prev = now;
+
+    // Read keyboard this frame
+    processCameraInput(dt);
+
+    // --- Time for orbits/spins
+    static auto start = std::chrono::high_resolution_clock::now();
+    float t = std::chrono::duration<float>(now - start).count();
+
+    // --- Camera params (shader builds view/proj from these)
+    glm::vec3 eye    = camPos;
+    glm::vec3 center = camPos + cameraForward();
+    glm::vec3 up     = camUp;
+
+    float fovy   = glm::radians(45.0f);
+    float aspect = swapChainExtent.width / (float)swapChainExtent.height;
+    float zNear  = 0.1f;
+    float zFar   = 200.0f;
+
+    // --- Speeds
+    float sunSpinDeg    = 10.0f;
+    float earthOrbitDeg = 40.0f;
+    float earthSpinDeg  = 120.0f;
+    float moonOrbitDeg  = 200.0f;
+
+    // --- Distances / scales
+    float earthRadius = 4.0f;
+    float moonRadius  = 1.6f;
+    float sunScale    = 1.6f;
+    float earthScale  = 0.6f;
+    float moonScale   = 0.18f;
+
+    // --- Tilts
+    float earthTiltDeg = 15.0f;
+    float moonTiltDeg  = 5.0f;
+
+    // --- Angles over time
+    float sunSpin    = glm::radians(sunSpinDeg)    * t;
+    float earthOrbit = glm::radians(earthOrbitDeg) * t;
+    float earthSpin  = glm::radians(earthSpinDeg)  * t;
+    float moonOrbit  = glm::radians(moonOrbitDeg)  * t;
+
+    // --- Sun (root)
+    glm::mat4 Sun =
+        glm::rotate(glm::mat4(1.0f), sunSpin, glm::vec3(0, 1, 0)) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(sunScale));
+
+    // --- Earth (relative to Sun): Sun * tilt * orbit * translate * spin * scale
+    glm::mat4 Earth =
+        Sun *
+        glm::rotate(glm::mat4(1.0f), glm::radians(earthTiltDeg), glm::vec3(1, 0, 0)) *
+        glm::rotate(glm::mat4(1.0f), earthOrbit, glm::vec3(0, 1, 0)) *
+        glm::translate(glm::mat4(1.0f), glm::vec3(earthRadius, 0, 0)) *
+        glm::rotate(glm::mat4(1.0f), earthSpin, glm::vec3(0, 1, 0)) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(earthScale));
+
+    // --- Moon (relative to Earth) with tidal lock (inverse spin after translate)
+    glm::mat4 Moon =
+        Earth *
+        glm::rotate(glm::mat4(1.0f), glm::radians(moonTiltDeg), glm::vec3(0, 0, 1)) *
+        glm::rotate(glm::mat4(1.0f), moonOrbit, glm::vec3(0, 1, 0)) *
+        glm::translate(glm::mat4(1.0f), glm::vec3(moonRadius, 0, 0)) *
+        glm::rotate(glm::mat4(1.0f), -moonOrbit, glm::vec3(0, 1, 0)) *
+        glm::scale(glm::mat4(1.0f), glm::vec3(moonScale));
+
+    // --- Write 3 UBOs (Sun, Earth, Moon) for this frame
+    const uint32_t base = currentImage * 3;
+
+    auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
+        UniformBufferObject u{};
+        u.model  = model;
+        u.eye    = glm::vec4(eye,    1.0f);
+        u.center = glm::vec4(center, 1.0f);
+        u.up     = glm::vec4(up,     0.0f);  // w unused
+        u.cam    = glm::vec4(fovy, aspect, zNear, zFar);
+        std::memcpy(uniformBuffersMapped[base + idx], &u, sizeof(u));
+    };
+
+    writeUBO(0, Sun);
+    writeUBO(1, Earth);
+    writeUBO(2, Moon);
+}
+```
 ***Reflection:***
+This exercise helped me understand how to bridge input handling with real-time camera control in a rendering pipeline. I learned how 
+yaw, pitch, and direction vectors work together to define the camera’s orientation, and how updating these values frame by frame 
+creates an intuitive first-person navigation effect. It also reinforced the importance of delta-time scaling for consistent motion 
+regardless of frame rate. Implementing keyboard input in combination with uniform buffer updates demonstrated how user interactions 
+can directly influence GPU-rendered transformations, marking the first practical step toward building an interactive 3D application.
