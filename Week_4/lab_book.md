@@ -61,13 +61,13 @@ transformations work in 3D graphics and how they can be used to create different
 **Solution:**
 I already had the scaling transformation from Exercise 1, where I stretched the cube into a tall, thin pillar at the origin, so I began 
 Exercise 2 by focusing on the rotation and translation needed for the orbiting cube. I reused the scaled pillar from Exercise 1 as the 
-central object and created a second model matrix for the smaller cube. Each frame, I updated two uniform buffers—one for the pillar and 
-one for the orbiting cube—and in the command buffer, I bound the two descriptor sets and issued separate draw calls so both objects would 
+central object and created a second model matrix for the smaller cube. Each frame, I updated two uniform buffersï¿½one for the pillar and 
+one for the orbiting cubeï¿½and in the command buffer, I bound the two descriptor sets and issued separate draw calls so both objects would 
 render with their respective transformations. In `updateUniformBuffer()`, I changed the transformation order to rotation * translation, 
 as the other way round was just causing the cube to rotate in place. So when I corrected this, the cube rotate around the pillar, creating 
 a proper circular orbit rather than spinning in place. 
 
-After confirming that the cube’s movement around the pillar was correct, I added depth testing so the cube could pass behind it realistically. 
+After confirming that the cubeï¿½s movement around the pillar was correct, I added depth testing so the cube could pass behind it realistically. 
 I introduced new Vulkan resources for depth: a depth image, its memory, and an image view, along with helper functions like `findDepthFormat()` 
 and `createDepthResources()`. I integrated depth creation after `createImageViews()` during initialization and swapchain recreation 
 and cleaned it up in `cleanupSwapChain()`. Then, in the graphics pipeline, I enabled depth testing and writing with a 
@@ -79,7 +79,7 @@ to disappear behind the pillar as it moved through its orbit.
 To complete the exercise, I extended the hierarchical transformation scene by adding two tall, scaled pillars and two 
 smaller cubes that orbit around them at different speeds. Each pillar was positioned symmetrically along the X-axis, 
 while the cubes were given individual rotation rates, directions, and phases to create independent orbital motion around
-their respective pillars. I updated the uniform buffers to store five model matrices per frame—one for the ground plane, 
+their respective pillars. I updated the uniform buffers to store five model matrices per frameï¿½one for the ground plane, 
 two for the pillars, and two for the orbiting cubes, and issued separate draw calls for each object. This produced a 
 dynamic scene where both cubes revolve smoothly around their pillars, correctly passing behind them due to depth testing, 
 demonstrating full control over hierarchical transformations and object animation. 
@@ -151,7 +151,7 @@ multiplication order directly affects spatial behavior. Implementing separate un
 to manage multiple model matrices independently within the same frame, which was essential for rendering several moving 
 objects simultaneously.
 
-A key learning outcome was understanding the hierarchical relationship between objects, the cubes’ motion depended on 
+A key learning outcome was understanding the hierarchical relationship between objects, the cubes motion depended on 
 their respective pillar positions, reinforcing the concept of parent-child transformation. Adding depth testing completed 
 the visual realism by allowing objects to correctly pass behind one another, showing how the GPU uses depth comparisons 
 to handle occlusion. This exercise helped me solidify my understanding of the model-view-projection (MVP) matrix pipeline, 
@@ -170,55 +170,47 @@ the stick always pointed in the direction of motion. I achieved this by computin
 functions of the orbital angle and constructing a rotation matrix from an orthonormal basis formed by the tangent, up, 
 and right vectors. I used `glm::dot(right, right)` to check for zero-length vectors before normalizing, ensuring stable 
 calculations without requiring additional GLM extensions. By reusing the hierarchical structure and matrix composition 
-from Exercise 2 — including per-object model matrices and uniform buffer updates. I successfully animated two 
+from Exercise 2  including per-object model matrices and uniform buffer updates. I successfully animated two 
 tangent-aligned sticks orbiting at different speeds around the same pillars, demonstrating how transformations can be 
 extended from simple orbital motion to orientation-aware hierarchical movement.
 
 ```c++
-// World up (already used in your camera)
 glm::vec3 upWorld(0.0f, 1.0f, 0.0f);
 
-// Build a stick model at 'center' that orbits at speed 'omegaDeg' and stays tangent
 auto tangentStickAt = [&](const glm::vec3& center, float omegaDeg, float dir, float phaseDeg) -> glm::mat4 {
-    // angle & position on circle (Y=0 plane)
+
     float angle = glm::radians(phaseDeg + dir * omegaDeg * t);
     glm::vec3 pos(center.x + orbitR * std::cos(angle),
                   center.y,
                   center.z + orbitR * std::sin(angle));
 
-    // tangent direction of the orbit (derivative of (cos, sin) => (-sin, cos))
     glm::vec3 forward = glm::normalize(glm::vec3(-std::sin(angle), 0.0f, std::cos(angle)));
 
-    // right axis from up × forward; guard against degeneracy using dot (squared length)
-    glm::vec3 right = glm::cross(upWorld, forward);
-    if (glm::dot(right, right) < 1e-6f) right = glm::vec3(1, 0, 0); // fallback axis
-    right = glm::normalize(right);
 
-    // recompute up to ensure orthonormal basis
+    glm::vec3 right = glm::cross(upWorld, forward);
+    if (glm::dot(right, right) < 1e-6f) right = glm::vec3(1, 0, 0);
+    right = glm::normalize(right);
     glm::vec3 up = glm::normalize(glm::cross(forward, right));
 
-    // rotation matrix from basis (column-major: X=right, Y=up, Z=forward)
     glm::mat4 R(1.0f);
     R[0] = glm::vec4(right,   0.0f);
     R[1] = glm::vec4(up,      0.0f);
     R[2] = glm::vec4(forward, 0.0f);
 
-    // scale into a thin stick along local +Z
     glm::mat4 S = glm::scale(glm::mat4(1.0f), glm::vec3(stickW, stickH, stickL));
 
-    // final model: translate to orbit position, orient to tangent, then scale
     return glm::translate(glm::mat4(1.0f), pos) * R * S;
 };
 ```
 
 **Output:**
-![](ex3.png)
+![](Images/ex3.png)
 
 **Reflection:**
 In this exercise, I learned how to extend hierarchical transformations beyond simple orbital motion to include orientation 
-that reflects an object’s direction of travel. Building on the previous exercise, I discovered how to calculate tangent 
+that reflects an objects direction of travel. Building on the previous exercise, I discovered how to calculate tangent 
 vectors from circular motion using trigonometric relationships and use them to dynamically orient an object along its path.
-I learned how to construct an orthonormal basis (right, up, and forward vectors) to define an object’s rotation in 3D 
+I learned how to construct an orthonormal basis (right, up, and forward vectors) to define an objects rotation in 3D 
 space and how matrix composition (translate * rotate * scale) controls both position and orientation. Implementing this 
 also helped me understand how to manage numerical stability by checking vector lengths with `glm::dot(right, right)` before 
 normalization. More importantly, this exercise reinforced the idea that small changes in transformation logic can 
@@ -229,14 +221,14 @@ more complex, realistic animations.
 #### Goal: Create a simple solar system with a Sun, Earth, and Moon. This is a classic exercise in hierarchical transformations.
 
 **Solution:**
-In this task, I created a hierarchical transformation system to simulate a simple Sun–Earth–Moon model. The Sun was positioned at the
-origin, given a slow axial rotation, and scaled larger to represent its size. The Earth’s transformation was built relative to the 
-Sun’s by applying an orbital rotation around the Sun, a translation to set its orbital distance, a faster self-rotation to simulate 
-day and night, and a smaller scale to reflect its relative size. The Moon’s transformation was then defined relative to the Earth’s 
+In this task, I created a hierarchical transformation system to simulate a simple Sun->Earth->Moon model. The Sun was positioned at the
+origin, given a slow axial rotation, and scaled larger to represent its size. The Earth's transformation was built relative to the 
+Sun's by applying an orbital rotation around the Sun, a translation to set its orbital distance, a faster self-rotation to simulate 
+day and night, and a smaller scale to reflect its relative size. The Moon's transformation was then defined relative to the Earth's 
 final position, orbiting around it at a smaller radius and reduced scale. I also implemented an optional inverse rotation for tidal 
 locking, ensuring the Moon always faced the Earth. The model matrices for all three bodies were written to uniform buffers and drawn 
 in sequence, with depth testing used to maintain correct visual layering. This structure successfully demonstrated hierarchical motion, 
-where each object’s transformation depended on its parent, creating a smooth and visually coherent orbital system.
+where each object's transformation depended on its parent, creating a smooth and visually coherent orbital system.
 
 - Sun
 ```c++
@@ -281,11 +273,11 @@ glm::mat4 Moon =
 Through this exercise, I learned how hierarchical transformations work in practice and how parent-child relationships determine the 
 position and orientation of complex multi-object systems. I saw how matrix multiplication order affects the final motion, for example, 
 rotating before translating produces an orbit, while translating first only moves the object in a straight line. I also understood 
-how local and world coordinate spaces interact: the Moon’s transformation depends on Earth’s, and Earth’s depends on the Sun’s. This 
+how local and world coordinate spaces interact: the Moonï¿½s transformation depends on Earthï¿½s, and Earthï¿½s depends on the Sunï¿½s. This 
 demonstrated how a single change in the parent matrix propagates down the hierarchy. Additionally, I learned to balance visual and 
 physical scaling, choosing orbital radii and rotation speeds that are not realistic in size but make motion readable in a single 
 camera view. The exercise deepened my understanding of using `glm::rotate`, `glm::translate`, and `glm::scale` together, and showed 
-how small adjustments to transform order or scale can dramatically change the scene’s behaviour.
+how small adjustments to transform order or scale can dramatically change the sceneï¿½s behaviour.
 
 Overall, I now have a much clearer grasp of hierarchical modelling, transformation composition, and how to simulate planetary systems
 using only matrix operations.
@@ -299,25 +291,25 @@ shader instead of being precomputed on the CPU. I passed only the essential came
 direction, field of view (fovy), aspect ratio, and near/far clipping planes from the C++ application through the uniform buffer. 
 In the shader, I manually built the view matrix using the forward, right, and up vectors derived from those parameters, and 
 constructed the perspective matrix using only fovy, aspect, zNear, and zFar, applying the required Y-axis inversion for Vulkan. 
-The model matrix remained on the CPU to manage object positioning. This design matched the exercise’s goal exactly: the CPU supplies 
+The model matrix remained on the CPU to manage object positioning. This design matched the exercise's goal exactly: the CPU supplies 
 minimal camera data, while the GPU handles the actual mathematical construction of the transformation matrices.
 
 -- Uniform Buffer Object:
 ```c++
 struct UniformBufferObject {
-    alignas(16) glm::mat4 model;   // per-object model matrix
-    alignas(16) glm::vec4 eye;     // xyz = camera position
-    alignas(16) glm::vec4 center;  // xyz = look-at target
-    alignas(16) glm::vec4 up;      // xyz = world up (e.g., 0,1,0)
+    alignas(16) glm::mat4 model;  
+    alignas(16) glm::vec4 eye;     
+    alignas(16) glm::vec4 center;  
+    alignas(16) glm::vec4 up;      
     alignas(16) glm::vec4 cam;     // x=fovy(rad), y=aspect, z=zNear, w=zFar
 };
 ```
 
 -- View and Projection Matrix Construction:
 ```c++
-    vec3 f = normalize(ubo.center.xyz - ubo.eye.xyz);   // forward
-    vec3 s = normalize(cross(f, ubo.up.xyz));           // right
-    vec3 u = cross(s, f);                               // true up
+    vec3 f = normalize(ubo.center.xyz - ubo.eye.xyz);  
+    vec3 s = normalize(cross(f, ubo.up.xyz));          
+    vec3 u = cross(s, f);                              
 
     mat4 view = mat4(1.0);
     view[0][0] =  s.x; view[1][0] =  s.y; view[2][0] =  s.z; view[3][0] = -dot(s, ubo.eye.xyz);
@@ -325,7 +317,6 @@ struct UniformBufferObject {
     view[0][2] = -f.x; view[1][2] = -f.y; view[2][2] = -f.z; view[3][2] =  dot(f, ubo.eye.xyz);
     view[0][3] =  0.0; view[1][3] =  0.0; view[2][3] =  0.0; view[3][3] =  1.0;
 
-    // --- Projection matrix (manual perspective, Vulkan-convention)
     float fovy   = ubo.cam.x;
     float aspect = ubo.cam.y;
     float zNear  = ubo.cam.z;
@@ -340,7 +331,6 @@ struct UniformBufferObject {
     proj[2][3] = -1.0;
     proj[3][2] = (2.0 * zFar * zNear) / (zNear - zFar);
 
-    // Vulkan clip-space Y flip
     proj[1][1] *= -1.0;
 ```
 -- Writing UBO:
@@ -362,7 +352,7 @@ struct UniformBufferObject {
     u.up     = glm::vec4(up, 0.0f);
     u.cam    = glm::vec4(fovy, aspect, zNear, zFar);
 
-    std::memcpy(uniformBuffersMapped[base + idx], &u, sizeof(u));  // ? This writes into the GPU-visible buffer
+    std::memcpy(uniformBuffersMapped[base + idx], &u, sizeof(u)); 
 };
 ```
 
@@ -373,25 +363,22 @@ struct UniformBufferObject {
 Through this exercise, I developed a clearer understanding of how view and projection matrices work at a mathematical level, rather 
 than treating them as black boxes generated by helper libraries like GLM. Writing the matrix calculations manually revealed how 
 camera orientation, clipping planes, and aspect ratio combine to define the visual perspective in 3D space. I also learned the 
-importance of precision and convention differences between APIs, such as Vulkan’s coordinate system and clip-space depth range, and 
+importance of precision and convention differences between APIs, such as Vulkanï¿½s coordinate system and clip-space depth range, and 
 how small sign or order errors can distort the final image. Most importantly, this exercise reinforced the flow of data between CPU 
 and GPU: the CPU now provides minimal camera parameters, while the shader performs the heavy transformation work in real time.
 
 ### FURTHER EXPLORATION 
 
 **Solution:**
-To implement the keyboard-controlled camera, I introduced persistent variables for the camera’s position, yaw, and pitch, then 
+To implement the keyboard-controlled camera, I introduced persistent variables for the cameraï¿½s position, yaw, and pitch, then 
 calculated the forward direction each frame from those angles. I created a `processCameraInput()` function that reads keyboard input 
-using GLFW — WASD for movement on the ground plane, Q/E for vertical motion, and the arrow keys to adjust rotation. These inputs 
-modify the camera’s position and orientation in real time. The `updateUniformBuffer()` function was updated to call this input handler 
+using GLFW, WASD for movement on the ground plane, Q/E for vertical motion, and the arrow keys to adjust rotation. These inputs 
+modify the camera's position and orientation in real time. The `updateUniformBuffer()` function was updated to call this input handler 
 each frame, compute a new forward vector, and then pass the resulting eye, center, and up vectors to the uniform buffer. The shader 
 uses these parameters to reconstruct the view and projection matrices dynamically. This setup allows smooth, interactive navigation 
-through the 3D scene while preserving the hierarchical Sun–Earth–Moon transformations from the previous exercise.
+through the 3D scene while preserving the hierarchical Sun->Earth->Moon transformations from the previous exercise.
 
 ```c++
-// --------------------------------------------------------------
-// Camera forward vector from yaw/pitch (right-handed, Y-up)
-// --------------------------------------------------------------
 glm::vec3 HelloTriangleApplication::cameraForward() const {
     float yaw   = glm::radians(yawDeg);
     float pitch = glm::radians(pitchDeg);
@@ -399,94 +386,72 @@ glm::vec3 HelloTriangleApplication::cameraForward() const {
     float cp = std::cos(pitch), sp = std::sin(pitch);
     float cy = std::cos(yaw),   sy = std::sin(yaw);
 
-    // Forward in world space (XZ yaw, pitch around X)
     return glm::normalize(glm::vec3(cy * cp, sp, sy * cp));
 }
 ```
 
 ```c++
-// --------------------------------------------------------------
-// Per-frame keyboard camera control (WASD + QE + Arrow keys)
-// --------------------------------------------------------------
 void HelloTriangleApplication::processCameraInput(float dt) {
     if (!window) return;
 
-    // Derive basis from current yaw/pitch and up
-    glm::vec3 f = cameraForward();                 // forward
-    glm::vec3 r = glm::normalize(glm::cross(f, camUp)); // right
+    glm::vec3 f = cameraForward();               
+    glm::vec3 r = glm::normalize(glm::cross(f, camUp));
 
-    // --- Translation
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camPos += f * moveSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camPos -= f * moveSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camPos += r * moveSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camPos -= r * moveSpeed * dt;
 
-    // Elevation
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camPos += camUp * moveSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camPos -= camUp * moveSpeed * dt;
 
-    // --- Rotation
     if (glfwGetKey(window, GLFW_KEY_LEFT)  == GLFW_PRESS) yawDeg   -= turnSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yawDeg   += turnSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_UP)    == GLFW_PRESS) pitchDeg += turnSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_DOWN)  == GLFW_PRESS) pitchDeg -= turnSpeed * dt;
 
-    // Clamp pitch to avoid gimbal flip
     pitchDeg = glm::clamp(pitchDeg, -89.0f, 89.0f);
 }
 ```
 ```c++
-// --------------------------------------------------------------
-// Per-frame keyboard camera control (WASD + QE + Arrow keys)
-// --------------------------------------------------------------
+
 void HelloTriangleApplication::processCameraInput(float dt) {
     if (!window) return;
 
-    // Derive basis from current yaw/pitch and up
-    glm::vec3 f = cameraForward();                 // forward
-    glm::vec3 r = glm::normalize(glm::cross(f, camUp)); // right
 
-    // --- Translation
+    glm::vec3 f = cameraForward();                
+    glm::vec3 r = glm::normalize(glm::cross(f, camUp));
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camPos += f * moveSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camPos -= f * moveSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camPos += r * moveSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camPos -= r * moveSpeed * dt;
 
-    // Elevation
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camPos += camUp * moveSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camPos -= camUp * moveSpeed * dt;
 
-    // --- Rotation
     if (glfwGetKey(window, GLFW_KEY_LEFT)  == GLFW_PRESS) yawDeg   -= turnSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yawDeg   += turnSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_UP)    == GLFW_PRESS) pitchDeg += turnSpeed * dt;
     if (glfwGetKey(window, GLFW_KEY_DOWN)  == GLFW_PRESS) pitchDeg -= turnSpeed * dt;
 
-    // Clamp pitch to avoid gimbal flip
     pitchDeg = glm::clamp(pitchDeg, -89.0f, 89.0f);
 }
 ```
 ```c++
-// --------------------------------------------------------------
-// UBO update — Exercise 4/5 with keyboard camera
-//  - Calls processCameraInput(dt)
-//  - Writes model + eye/center/up + cam (fovy,aspect,near,far)
-// --------------------------------------------------------------
+
 void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
-    // --- Delta time (for input & animation)
+
     static auto prev = std::chrono::high_resolution_clock::now();
     auto now = std::chrono::high_resolution_clock::now();
     float dt = std::chrono::duration<float>(now - prev).count();
     prev = now;
 
-    // Read keyboard this frame
     processCameraInput(dt);
 
-    // --- Time for orbits/spins
     static auto start = std::chrono::high_resolution_clock::now();
     float t = std::chrono::duration<float>(now - start).count();
 
-    // --- Camera params (shader builds view/proj from these)
     glm::vec3 eye    = camPos;
     glm::vec3 center = camPos + cameraForward();
     glm::vec3 up     = camUp;
@@ -496,35 +461,30 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float zNear  = 0.1f;
     float zFar   = 200.0f;
 
-    // --- Speeds
     float sunSpinDeg    = 10.0f;
     float earthOrbitDeg = 40.0f;
     float earthSpinDeg  = 120.0f;
     float moonOrbitDeg  = 200.0f;
 
-    // --- Distances / scales
     float earthRadius = 4.0f;
     float moonRadius  = 1.6f;
     float sunScale    = 1.6f;
     float earthScale  = 0.6f;
     float moonScale   = 0.18f;
 
-    // --- Tilts
     float earthTiltDeg = 15.0f;
     float moonTiltDeg  = 5.0f;
 
-    // --- Angles over time
     float sunSpin    = glm::radians(sunSpinDeg)    * t;
     float earthOrbit = glm::radians(earthOrbitDeg) * t;
     float earthSpin  = glm::radians(earthSpinDeg)  * t;
     float moonOrbit  = glm::radians(moonOrbitDeg)  * t;
 
-    // --- Sun (root)
     glm::mat4 Sun =
         glm::rotate(glm::mat4(1.0f), sunSpin, glm::vec3(0, 1, 0)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(sunScale));
 
-    // --- Earth (relative to Sun): Sun * tilt * orbit * translate * spin * scale
+
     glm::mat4 Earth =
         Sun *
         glm::rotate(glm::mat4(1.0f), glm::radians(earthTiltDeg), glm::vec3(1, 0, 0)) *
@@ -533,7 +493,6 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
         glm::rotate(glm::mat4(1.0f), earthSpin, glm::vec3(0, 1, 0)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(earthScale));
 
-    // --- Moon (relative to Earth) with tidal lock (inverse spin after translate)
     glm::mat4 Moon =
         Earth *
         glm::rotate(glm::mat4(1.0f), glm::radians(moonTiltDeg), glm::vec3(0, 0, 1)) *
@@ -542,7 +501,6 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
         glm::rotate(glm::mat4(1.0f), -moonOrbit, glm::vec3(0, 1, 0)) *
         glm::scale(glm::mat4(1.0f), glm::vec3(moonScale));
 
-    // --- Write 3 UBOs (Sun, Earth, Moon) for this frame
     const uint32_t base = currentImage * 3;
 
     auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
@@ -550,7 +508,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
         u.model  = model;
         u.eye    = glm::vec4(eye,    1.0f);
         u.center = glm::vec4(center, 1.0f);
-        u.up     = glm::vec4(up,     0.0f);  // w unused
+        u.up     = glm::vec4(up,     0.0f);  
         u.cam    = glm::vec4(fovy, aspect, zNear, zFar);
         std::memcpy(uniformBuffersMapped[base + idx], &u, sizeof(u));
     };
@@ -562,7 +520,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
 ```
 ***Reflection:***
 This exercise helped me understand how to bridge input handling with real-time camera control in a rendering pipeline. I learned how 
-yaw, pitch, and direction vectors work together to define the camera’s orientation, and how updating these values frame by frame 
+yaw, pitch, and direction vectors work together to define the camera's orientation, and how updating these values frame by frame 
 creates an intuitive first-person navigation effect. It also reinforced the importance of delta-time scaling for consistent motion 
 regardless of frame rate. Implementing keyboard input in combination with uniform buffer updates demonstrated how user interactions 
 can directly influence GPU-rendered transformations, marking the first practical step toward building an interactive 3D application.
