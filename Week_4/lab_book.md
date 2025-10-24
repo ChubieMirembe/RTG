@@ -40,8 +40,8 @@ UniformBufferObject ubo{};
     ubo.proj[1][1] *= -1;
 ```
 **Output:**
-1. Horizontal View:
-![](Images/ex1_horizontal_view.png))
+- Horizontal View:
+![](Images/ex1_horizontal_view.png)
 
 2. Vertical View:
 ![](Images/ex1_vertical_view.png)
@@ -55,34 +55,21 @@ I continued to have understanding how to "lookat" the object. But by the end, I 
 model was being rendered by changeing the radians in the rotation matrix. This exercise helped me understand how scaling 
 transformations work in 3D graphics and how they can be used to create different shapes from a basic cube.
 
+---
+
 ### EXERCISE 2:HIERARCHICAL TRANSFORMATIONS
 #### Goal: Apply scaling, translation, and rotation transformations to achieve the following visual outcomes
 
 **Solution:**
-I already had the scaling transformation from Exercise 1, where I stretched the cube into a tall, thin pillar at the origin, so I began 
-Exercise 2 by focusing on the rotation and translation needed for the orbiting cube. I reused the scaled pillar from Exercise 1 as the 
-central object and created a second model matrix for the smaller cube. Each frame, I updated two uniform buffers�one for the pillar and 
-one for the orbiting cube�and in the command buffer, I bound the two descriptor sets and issued separate draw calls so both objects would 
-render with their respective transformations. In `updateUniformBuffer()`, I changed the transformation order to rotation * translation, 
-as the other way round was just causing the cube to rotate in place. So when I corrected this, the cube rotate around the pillar, creating 
-a proper circular orbit rather than spinning in place. 
+I already had the scaling transformation from Exercise 1, where I stretched the cube into a tall, thin pillar at the origin, so I began exercise 2 by focusing on the rotation and translation needed for the orbiting cube. I reused the scaled pillar from exercise 1 as the central object and created a second model matrix for the smaller cube. Each frame, I updated two uniform buffers, one for the pillar and one for the orbiting cube, and in the command buffer, I bound the two descriptor sets and issued separate draw calls so both objects would render with their respective transformations. In `updateUniformBuffer()`, I changed the transformation order to rotation * translation, as the other way round was just causing the cube to rotate in place. So when I corrected this, the cube rotate around the pillar, creating a proper circular orbit rather than spinning in place. 
 
-After confirming that the cube�s movement around the pillar was correct, I added depth testing so the cube could pass behind it realistically. 
-I introduced new Vulkan resources for depth: a depth image, its memory, and an image view, along with helper functions like `findDepthFormat()` 
-and `createDepthResources()`. I integrated depth creation after `createImageViews()` during initialization and swapchain recreation 
-and cleaned it up in `cleanupSwapChain()`. Then, in the graphics pipeline, I enabled depth testing and writing with a 
-VkPipelineDepthStencilStateCreateInfo block and included the chosen depth format in the dynamic rendering setup. Finally, I modified the 
-command buffer recording to transition the depth image and attach it for rendering so it would clear and update each frame. With those changes, 
-my existing scaled pillar from Exercise 1 stayed fixed at the origin, the cube orbited smoothly around it, and the depth testing allowed it 
-to disappear behind the pillar as it moved through its orbit.
+After confirming that the cube's movement around the pillar was correct, I added depth testing so the cube could pass behind it realistically. I introduced new Vulkan resources for depth: a depth image, its memory, and an image view, along with helper functions like `findDepthFormat()` and `createDepthResources()`. I integrated depth creation after `createImageViews()` during initialization and swapchain recreation and cleaned it up in `cleanupSwapChain()`. Then, in the graphics pipeline, I enabled depth testing and writing with a VkPipelineDepthStencilStateCreateInfo block and included the chosen depth format in the dynamic rendering setup. Finally, I modified the command buffer recording to transition the depth image and attach it for rendering so it would clear and update each frame. With those changes, 
+my existing scaled pillar from Exercise 1 stayed fixed at the origin, the cube orbited smoothly around it, and the depth testing allowed it to disappear behind the pillar as it moved through its orbit.
 
 To complete the exercise, I extended the hierarchical transformation scene by adding two tall, scaled pillars and two 
 smaller cubes that orbit around them at different speeds. Each pillar was positioned symmetrically along the X-axis, 
 while the cubes were given individual rotation rates, directions, and phases to create independent orbital motion around
-their respective pillars. I updated the uniform buffers to store five model matrices per frame�one for the ground plane, 
-two for the pillars, and two for the orbiting cubes, and issued separate draw calls for each object. This produced a 
-dynamic scene where both cubes revolve smoothly around their pillars, correctly passing behind them due to depth testing, 
-demonstrating full control over hierarchical transformations and object animation. 
+their respective pillars. I updated the uniform buffers to store five model matrices per frames, one for the ground plane, two for the pillars, and two for the orbiting cubes, and issued separate draw calls for each object. This produced a dynamic scene where both cubes revolve smoothly around their pillars, correctly passing behind them due to depth testing, demonstrating full control over hierarchical transformations and object animation. 
 
 ```c++
 glm::mat4 pillarModel = glm::scale(glm::mat4(1.0f), glm::vec3(0.3f, 3.0f, 0.3f));
@@ -98,7 +85,7 @@ glm::mat4 translation = glm::translate(glm::mat4(1.0f),
 glm::mat4 orbit = rotation * translation;
 glm::mat4 cubeModel = orbit * glm::scale(glm::mat4(1.0f), glm::vec3(0.4f));
 ```
--- Multiple draw calls per frame:
+- Multiple draw calls per frame:
 ```c++
 for (uint32_t i = 0; i < objectCount; ++i) {
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
@@ -106,9 +93,9 @@ for (uint32_t i = 0; i < objectCount; ++i) {
     vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 }
 ```
--- Writing multiple UBOs per frame:
+- Writing multiple UBOs per frame:
 ```c++
-const uint32_t base = currentImage * objectCount; // objectCount = e.g. 5
+const uint32_t base = currentImage * objectCount; 
 
 auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
     UniformBufferObject ubo{};
@@ -120,7 +107,6 @@ auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
 ```
 - Transformation Logic
 ```c++
-// Time variable for animation
 static auto start = std::chrono::high_resolution_clock::now();
 float t = std::chrono::duration<float>(
     std::chrono::high_resolution_clock::now() - start).count();
@@ -130,7 +116,7 @@ auto orbitMatrix = [&](float speedDeg, float direction, float phaseDeg) {
     float angle = glm::radians(phaseDeg + direction * speedDeg * t);
     glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0));
     glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(orbitRadius, 0.0f, 0.0f));
-    return rotation * translation; // GLM post-multiply: translate then rotate about origin
+    return rotation * translation;
 };
 
 ```
@@ -158,6 +144,7 @@ to handle occlusion. This exercise helped me solidify my understanding of the mo
 frame-level uniform buffer management, and real-time animation in Vulkan. It also highlighted the importance of organizing 
 transformation logic and resource management when scaling up from a single object to a dynamic scene.
 
+---
 ### Exercise 3: Advanced Rotation - Tangent to Path
 #### Goal:  Transform the small rotating cube into a long, slender stick by applying an appropriate scaling transformation. Then, rotate the stick around an axis such that it remains tangent to its circular rotation path at all times, as illustrated below.
 
@@ -217,6 +204,7 @@ normalization. More importantly, this exercise reinforced the idea that small ch
 significantly affect how an object behaves in a scene, and that hierarchical models can be reused and expanded to create 
 more complex, realistic animations.
 
+--- 
 ### EXERCISE 4:ANIMATING A SOLAR SYSTEM
 #### Goal: Create a simple solar system with a Sun, Earth, and Moon. This is a classic exercise in hierarchical transformations.
 
@@ -363,14 +351,14 @@ struct UniformBufferObject {
 Through this exercise, I developed a clearer understanding of how view and projection matrices work at a mathematical level, rather 
 than treating them as black boxes generated by helper libraries like GLM. Writing the matrix calculations manually revealed how 
 camera orientation, clipping planes, and aspect ratio combine to define the visual perspective in 3D space. I also learned the 
-importance of precision and convention differences between APIs, such as Vulkan�s coordinate system and clip-space depth range, and 
+importance of precision and convention differences between APIs, such as Vulkan's coordinate system and clip-space depth range, and 
 how small sign or order errors can distort the final image. Most importantly, this exercise reinforced the flow of data between CPU 
 and GPU: the CPU now provides minimal camera parameters, while the shader performs the heavy transformation work in real time.
 
 ### FURTHER EXPLORATION 
 
 **Solution:**
-To implement the keyboard-controlled camera, I introduced persistent variables for the camera�s position, yaw, and pitch, then 
+To implement the keyboard-controlled camera, I introduced persistent variables for the camera's position, yaw, and pitch, then 
 calculated the forward direction each frame from those angles. I created a `processCameraInput()` function that reads keyboard input 
 using GLFW, WASD for movement on the ground plane, Q/E for vertical motion, and the arrow keys to adjust rotation. These inputs 
 modify the camera's position and orientation in real time. The `updateUniformBuffer()` function was updated to call this input handler 
