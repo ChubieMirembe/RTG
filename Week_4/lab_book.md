@@ -1,5 +1,4 @@
-# Vulkan Lab  - Transformations and Coordinate Systems
-## Week 4 - Lab A
+# Vulkan Lab 3: Transformations andCoordinate Systems 
 
 
 ### EXERCISE 1:BASIC SCALING TRANSFORMATION
