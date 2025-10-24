@@ -93,6 +93,32 @@ for (uint32_t i = 0; i < objectCount; ++i) {
     vkCmdDrawIndexed(cmd, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 }
 ```
+- Transformation Logic
+```c++
+static auto start = std::chrono::high_resolution_clock::now();
+float t = std::chrono::duration<float>(
+    std::chrono::high_resolution_clock::now() - start).count();
+
+auto orbitMatrix = [&](float speedDeg, float direction, float phaseDeg) {
+    float angle = glm::radians(phaseDeg + direction * speedDeg * t);
+    glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0));
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(orbitRadius, 0.0f, 0.0f));
+    return rotation * translation;
+};
+
+glm::mat4 centerL = glm::translate(glm::mat4(1.0f), glm::vec3(-pillarX, 0.0f, 0.0f));
+glm::mat4 centerR = glm::translate(glm::mat4(1.0f), glm::vec3(+pillarX, 0.0f, 0.0f));
+
+
+glm::mat4 cubeLModel =
+    centerL * orbitMatrix(omegaL_deg, dirL, phaseL_deg) *
+    glm::scale(glm::mat4(1.0f), glm::vec3(cubeS));
+
+glm::mat4 cubeRModel =
+    centerR * orbitMatrix(omegaR_deg, dirR, phaseR_deg) *
+    glm::scale(glm::mat4(1.0f), glm::vec3(cubeS));
+```
+
 - Writing multiple UBOs per frame:
 ```c++
 const uint32_t base = currentImage * objectCount; 
@@ -104,22 +130,14 @@ auto writeUBO = [&](uint32_t idx, const glm::mat4& model) {
     ubo.proj  = proj;
     std::memcpy(uniformBuffersMapped[base + idx], &ubo, sizeof(ubo));
 };
-```
-- Transformation Logic
-```c++
-static auto start = std::chrono::high_resolution_clock::now();
-float t = std::chrono::duration<float>(
-    std::chrono::high_resolution_clock::now() - start).count();
 
-// Generic orbit function
-auto orbitMatrix = [&](float speedDeg, float direction, float phaseDeg) {
-    float angle = glm::radians(phaseDeg + direction * speedDeg * t);
-    glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0));
-    glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(orbitRadius, 0.0f, 0.0f));
-    return rotation * translation;
-};
-
+writeUBO(0, groundModel);
+writeUBO(1, pillarLModel);
+writeUBO(2, pillarRModel);
+writeUBO(3, cubeLModel);
+writeUBO(4, cubeRModel);
 ```
+
 
 **Output:**
 1. Single Towwer and Cube:
