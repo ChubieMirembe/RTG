@@ -59,6 +59,7 @@
 **Reflection:**
 
 
+
 --- 
 ### EXERCISE 4:ADDING PER-VERTEX SPECULAR LIGHTING
 #### Goal: : Complete the reflection model implemented in Exercise 2 by adding specular highlights to the vertex shader.
