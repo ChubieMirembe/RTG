@@ -325,20 +325,76 @@ not bind resources that are not used, such as an index buffer when drawing non i
 
 
 **Solution:**
+In this exercise I completed the Phong reflection model by adding a specular component to the vertex shader. This extended the lighting calculations from Exercise 2, 
+where only ambient and diffuse were used. I transformed the vertex position and normal to world space, calculated the light direction and diffuse term, then computed 
+the view direction using the eye position from the uniform buffer. I generated the reflection vector using the GLSL reflect function and applied the shininess exponent 
+so the highlight intensity falls off correctly. The final lighting result is the sum of ambient, diffuse, and specular components and it is written to fragColor. 
+The fragment shader remained unchanged, simply outputting the interpolated vertex colour. This correctly implements per vertex specular lighting as defined in the 
+exercise requirements.
 
 ```c++
-```
-```c++
-```
-```c++
+#version 450
+
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+    vec3 lightPos;
+    vec3 eyePos;
+} ubo;
+
+layout(location=0) in vec3 inPosition;
+layout(location=1) in vec3 inColor;
+layout(location=2) in vec3 inNormal;
+
+layout(location=0) out vec3 fragColor;
+
+void main() {
+    // Transform to world space
+    vec3 worldPos = (ubo.model * vec4(inPosition, 1.0)).xyz;
+    vec3 worldNormal = mat3(transpose(inverse(ubo.model))) * inNormal;
+    vec3 norm = normalize(worldNormal);
+
+    vec3 lightColor = vec3(1.0);
+    vec3 ambientMaterial = vec3(0.2, 0.1, 0.2);
+    vec3 diffMaterial = vec3(1.0);
+
+    // Diffuse
+    vec3 lightDir = normalize(ubo.lightPos - worldPos);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diff * lightColor;
+
+    // Specular
+    vec3 viewDir = normalize(ubo.eyePos - worldPos);
+    vec3 reflectDir = normalize(reflect(-lightDir, norm));
+    float shininess = 32.0;
+    float spec = pow(max(dot(reflectDir, viewDir), 0.0), shininess);
+    vec3 specMaterial = vec3(1.0);
+    vec3 specular = specMaterial * lightColor * spec;
+
+    // Output lighting result (per-vertex)
+    fragColor = ambientMaterial * lightColor + diffMaterial * diffuse + specular;
+
+    gl_Position = ubo.proj * ubo.view * vec4(worldPos, 1.0);
+}
+
 ```
 
 **Output:**
 
+- 70 degrees view:
+!(Images/ex4_1.png)
 
+- 80 degrees view:
+!(Images/ex4_2.png)
 
 **Reflection:**
-
+Initially, I could not see the difference between Exercise 3 and Exercise 4, because the specular term was subtle and was being overshadowed by the diffuse lighting. 
+To understand why, I experimented with different light positions, material strengths, and shininess values. Reducing the ambient intensity and increasing 
+the specular material strength made the highlight more visible, while adjusting the light direction ensured that at least one face of the cube reflected light 
+toward the camera. This confirmed that the specular calculation was working correctly but showed how sensitive highlights are to lighting conditions. I also learned 
+that per vertex specular can appear softer or slightly inaccurate because it is interpolated across the triangle surface, but the highlight does move across the 
+cube and responds properly to rotation. These experiments helped me clearly see how the addition of specular lighting enhances realism compared to Exercise 2 and Exercise 3.
 
 
 ### EXERCISE 5:ADDING PER-FRAGMENT SPECULAR LIGHTING
