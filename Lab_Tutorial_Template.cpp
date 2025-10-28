@@ -1,7 +1,7 @@
 ﻿//==================================================
 // Vulkan 1.3 - Exercise 4
 // Three cubes, two lights (white static + red rotating around Y),
-// and billboarded "light icon" sprites at each light position.
+// light sources rendered as 3D spheres, and DEPTH testing enabled.
 //==================================================
 
 #define GLFW_INCLUDE_VULKAN
@@ -147,16 +147,6 @@ static std::vector<Vertex> cubeVertices = {
     {{-0.5f,-0.5f,-0.5f},{0,1,1},{0,-1,0}},
 };
 
-// Billboard quad for light icons (size ~0.2 world units)
-static std::vector<Vertex> lightIconVerts = {
-    {{-0.1f,-0.1f,0.0f},{1,1,1},{0,0,1}},
-    {{ 0.1f,-0.1f,0.0f},{1,1,1},{0,0,1}},
-    {{ 0.1f, 0.1f,0.0f},{1,1,1},{0,0,1}},
-    {{ 0.1f, 0.1f,0.0f},{1,1,1},{0,0,1}},
-    {{-0.1f, 0.1f,0.0f},{1,1,1},{0,0,1}},
-    {{-0.1f,-0.1f,0.0f},{1,1,1},{0,0,1}},
-};
-
 static std::vector<Vertex> vertices; // main scene verts (cube)
 static std::vector<uint16_t> indices; // not used (draw arrays)
 
@@ -190,6 +180,12 @@ private:
     VkExtent2D swapChainExtent{ 0, 0 };
     std::vector<VkImageView> swapChainImageViews;
 
+    // Depth (new)
+    VkImage depthImage = VK_NULL_HANDLE;
+    VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
+    VkImageView depthImageView = VK_NULL_HANDLE;
+    VkFormat depthFormat = VK_FORMAT_UNDEFINED;
+
     // Pipeline
     VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
@@ -199,9 +195,10 @@ private:
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
 
-    // Light icon buffer
+    // Light icon buffer (spheres)
     VkBuffer lightIconVBO = VK_NULL_HANDLE;
     VkDeviceMemory lightIconVBOMemory = VK_NULL_HANDLE;
+    uint32_t lightIconVertexCount = 0;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -218,7 +215,7 @@ private:
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
 
-    // Cache last UBO for billboard helper at recording time
+    // Cache last UBO for light positions at recording time
     GlobalUBO lastUBO{};
 
     // Flow
@@ -235,6 +232,7 @@ private:
     void createLogicalDevice();
     void createSwapChain();
     void createImageViews();
+    void createDepthResources(); // new
     void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createCommandPool();
@@ -272,7 +270,17 @@ private:
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-    // Billboard helper
+    // Images (new)
+    VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates,
+        VkImageTiling tiling, VkFormatFeatureFlags features);
+    VkFormat findDepthFormat();
+    bool hasStencilComponent(VkFormat format);
+    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+        VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+        VkImage& image, VkDeviceMemory& imageMemory);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+
+    // Billboard helper (kept though not used with spheres)
     static glm::mat4 billboardAt(const glm::vec3& pos, const glm::mat4& view);
 
     // Callbacks
@@ -282,6 +290,8 @@ private:
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
+
+
 };
 
 // ---- Implementation ----
@@ -296,7 +306,7 @@ void HelloTriangleApplication::run() {
 void HelloTriangleApplication::initWindow() {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    window = glfwCreateWindow(WIDTH, HEIGHT, "Exercise 4 - Lights + Billboard Icons", nullptr, nullptr);
+    window = glfwCreateWindow(WIDTH, HEIGHT, "Exercise 4 - Lights + Depth", nullptr, nullptr);
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 }
@@ -309,6 +319,7 @@ void HelloTriangleApplication::initVulkan() {
     createLogicalDevice();
     createSwapChain();
     createImageViews();
+    createDepthResources();              // create depth target for current extent
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createCommandPool();
@@ -540,6 +551,110 @@ void HelloTriangleApplication::createImageViews() {
     }
 }
 
+VkFormat HelloTriangleApplication::findSupportedFormat(const std::vector<VkFormat>& candidates,
+    VkImageTiling tiling,
+    VkFormatFeatureFlags features) {
+    for (VkFormat format : candidates) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+        if (tiling == VK_IMAGE_TILING_LINEAR &&
+            (props.linearTilingFeatures & features) == features) {
+            return format;
+        }
+        if (tiling == VK_IMAGE_TILING_OPTIMAL &&
+            (props.optimalTilingFeatures & features) == features) {
+            return format;
+        }
+    }
+    throw std::runtime_error("Failed to find supported format!");
+}
+
+VkFormat HelloTriangleApplication::findDepthFormat() {
+    return findSupportedFormat(
+        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    );
+}
+
+bool HelloTriangleApplication::hasStencilComponent(VkFormat format) {
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
+        format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
+void HelloTriangleApplication::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+    VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+    VkImage& image, VkDeviceMemory& imageMemory) {
+    VkImageCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    info.imageType = VK_IMAGE_TYPE_2D;
+    info.extent.width = width;
+    info.extent.height = height;
+    info.extent.depth = 1;
+    info.mipLevels = 1;
+    info.arrayLayers = 1;
+    info.format = format;
+    info.tiling = tiling;
+    info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    info.usage = usage;
+    info.samples = VK_SAMPLE_COUNT_1_BIT;
+    info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateImage(device, &info, nullptr, &image) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create image!");
+
+    VkMemoryRequirements req{};
+    vkGetImageMemoryRequirements(device, image, &req);
+
+    VkMemoryAllocateInfo alloc{};
+    alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc.allocationSize = req.size;
+    alloc.memoryTypeIndex = findMemoryType(req.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(device, &alloc, nullptr, &imageMemory) != VK_SUCCESS)
+        throw std::runtime_error("Failed to allocate image memory!");
+
+    vkBindImageMemory(device, image, imageMemory, 0);
+}
+
+VkImageView HelloTriangleApplication::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
+    VkImageViewCreateInfo view{};
+    view.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view.image = image;
+    view.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view.format = format;
+    view.subresourceRange.aspectMask = aspectFlags;
+    view.subresourceRange.baseMipLevel = 0;
+    view.subresourceRange.levelCount = 1;
+    view.subresourceRange.baseArrayLayer = 0;
+    view.subresourceRange.layerCount = 1;
+
+    VkImageView imageView;
+    if (vkCreateImageView(device, &view, nullptr, &imageView) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create image view!");
+    return imageView;
+}
+
+void HelloTriangleApplication::createDepthResources() {
+    depthFormat = findDepthFormat();
+
+    // Destroy old if any (on recreate)
+    if (depthImageView) { vkDestroyImageView(device, depthImageView, nullptr); depthImageView = VK_NULL_HANDLE; }
+    if (depthImage) { vkDestroyImage(device, depthImage, nullptr); depthImage = VK_NULL_HANDLE; }
+    if (depthImageMemory) { vkFreeMemory(device, depthImageMemory, nullptr); depthImageMemory = VK_NULL_HANDLE; }
+
+    createImage(swapChainExtent.width, swapChainExtent.height, depthFormat,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        depthImage, depthImageMemory);
+
+    VkImageAspectFlags aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    if (hasStencilComponent(depthFormat)) aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    depthImageView = createImageView(depthImage, depthFormat, aspect);
+}
+
 void HelloTriangleApplication::createDescriptorSetLayout() {
     VkDescriptorSetLayoutBinding ubo{};
     ubo.binding = 0;
@@ -607,12 +722,20 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
+    // Depth/stencil state (enable depth)
+    VkPipelineDepthStencilStateCreateInfo ds{};
+    ds.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    ds.depthTestEnable = VK_TRUE;
+    ds.depthWriteEnable = VK_TRUE;
+    ds.depthCompareOp = VK_COMPARE_OP_LESS;
+    ds.depthBoundsTestEnable = VK_FALSE;
+    ds.stencilTestEnable = VK_FALSE;
+
     VkPipelineColorBlendAttachmentState cbAtt{};
     cbAtt.colorWriteMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-    // Enable alpha blending so icons can be semi-transparent later if desired
+    // Keep blending enabled in case icons use alpha
     cbAtt.blendEnable = VK_TRUE;
     cbAtt.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     cbAtt.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -648,10 +771,17 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     if (vkCreatePipelineLayout(device, &pl, nullptr, &pipelineLayout) != VK_SUCCESS)
         throw std::runtime_error("Failed to create pipeline layout!");
 
+    // Ensure we have a depth format (in case not yet created)
+    if (depthFormat == VK_FORMAT_UNDEFINED) {
+        depthFormat = findDepthFormat();
+    }
+
     VkPipelineRenderingCreateInfo rendering{};
     rendering.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
     rendering.colorAttachmentCount = 1;
     rendering.pColorAttachmentFormats = &swapChainImageFormat;
+    rendering.depthAttachmentFormat = depthFormat;
+    rendering.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
 
     VkGraphicsPipelineCreateInfo gp{};
     gp.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -663,6 +793,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     gp.pViewportState = &vp;
     gp.pRasterizationState = &rs;
     gp.pMultisampleState = &ms;
+    gp.pDepthStencilState = &ds;
     gp.pColorBlendState = &cb;
     gp.pDynamicState = &dyn;
     gp.layout = pipelineLayout;
@@ -712,17 +843,61 @@ void HelloTriangleApplication::createVertexBuffers() {
         vkFreeMemory(device, stagingMem, nullptr);
     }
 
-    // Light icon VBO (billboard quad)
+    // Light icon VBO (small UV sphere)
     {
-        VkDeviceSize size = sizeof(lightIconVerts[0]) * lightIconVerts.size();
+        auto makeSphere = [](uint32_t stacks, uint32_t slices, float radius) {
+            std::vector<Vertex> out;
+            out.reserve(stacks * slices * 6);
+            const float PI = 3.14159265358979323846f;
+            for (uint32_t i = 0; i < stacks; ++i) {
+                float t0 = PI * (float)i / (float)stacks;
+                float t1 = PI * (float)(i + 1) / (float)stacks;
+                float z0 = std::cos(t0), z1 = std::cos(t1);
+                float r0 = std::sin(t0), r1 = std::sin(t1);
+
+                for (uint32_t j = 0; j < slices; ++j) {
+                    float p0 = 2.0f * PI * (float)j / (float)slices;
+                    float p1 = 2.0f * PI * (float)(j + 1) / (float)slices;
+
+                    glm::vec3 n00 = glm::normalize(glm::vec3(std::cos(p0) * r0, std::sin(p0) * r0, z0));
+                    glm::vec3 n01 = glm::normalize(glm::vec3(std::cos(p1) * r0, std::sin(p1) * r0, z0));
+                    glm::vec3 n10 = glm::normalize(glm::vec3(std::cos(p0) * r1, std::sin(p0) * r1, z1));
+                    glm::vec3 n11 = glm::normalize(glm::vec3(std::cos(p1) * r1, std::sin(p1) * r1, z1));
+
+                    glm::vec3 p00 = radius * n00;
+                    glm::vec3 p01 = radius * n01;
+                    glm::vec3 p10 = radius * n10;
+                    glm::vec3 p11 = radius * n11;
+
+                    // Two triangles per quad (CCW)
+                    out.push_back({ p00, {1,1,1}, n00 });
+                    out.push_back({ p10, {1,1,1}, n10 });
+                    out.push_back({ p11, {1,1,1}, n11 });
+
+                    out.push_back({ p00, {1,1,1}, n00 });
+                    out.push_back({ p11, {1,1,1}, n11 });
+                    out.push_back({ p01, {1,1,1}, n01 });
+                }
+            }
+            return out;
+            };
+
+        const uint32_t stacks = 12;
+        const uint32_t slices = 24;
+        const float radius = 0.08f;
+        std::vector<Vertex> sphere = makeSphere(stacks, slices, radius);
+        lightIconVertexCount = static_cast<uint32_t>(sphere.size());
+
+        VkDeviceSize size = sizeof(Vertex) * sphere.size();
         VkBuffer staging;
         VkDeviceMemory stagingMem;
         createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             staging, stagingMem);
+
         void* data;
         vkMapMemory(device, stagingMem, 0, size, 0, &data);
-        memcpy(data, lightIconVerts.data(), (size_t)size);
+        memcpy(data, sphere.data(), (size_t)size);
         vkUnmapMemory(device, stagingMem);
 
         createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -892,9 +1067,14 @@ void HelloTriangleApplication::recreateSwapChain() {
     cleanupSwapChain();
     createSwapChain();
     createImageViews();
+    createDepthResources(); // re-create depth for new extent
 }
 
 void HelloTriangleApplication::cleanupSwapChain() {
+    if (depthImageView) vkDestroyImageView(device, depthImageView, nullptr);
+    if (depthImage) vkDestroyImage(device, depthImage, nullptr);
+    if (depthImageMemory) vkFreeMemory(device, depthImageMemory, nullptr);
+
     for (auto iv : swapChainImageViews) vkDestroyImageView(device, iv, nullptr);
     vkDestroySwapchainKHR(device, swapChain, nullptr);
 }
@@ -905,7 +1085,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
     if (vkBeginCommandBuffer(cmd, &bi) != VK_SUCCESS)
         throw std::runtime_error("Begin command buffer failed");
 
-    // Transition to color attachment
+    // Transition color to attachment
     VkImageMemoryBarrier2 toAttach{};
     toAttach.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     toAttach.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
@@ -914,15 +1094,27 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
     toAttach.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     toAttach.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     toAttach.image = swapChainImages[imageIndex];
-    toAttach.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0,1,0,1 };
+    toAttach.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
+    // Transition depth to attachment
+    VkImageMemoryBarrier2 depthBarrier{};
+    depthBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    depthBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+    depthBarrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+    depthBarrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    depthBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+    depthBarrier.image = depthImage;
+    depthBarrier.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+
+    std::array<VkImageMemoryBarrier2, 2> barriers{ toAttach, depthBarrier };
     VkDependencyInfo depAttach{};
     depAttach.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    depAttach.imageMemoryBarrierCount = 1;
-    depAttach.pImageMemoryBarriers = &toAttach;
+    depAttach.imageMemoryBarrierCount = static_cast<uint32_t>(barriers.size());
+    depAttach.pImageMemoryBarriers = barriers.data();
     vkCmdPipelineBarrier2(cmd, &depAttach);
 
-    // Begin dynamic rendering
+    // Begin dynamic rendering with depth attachment
     VkRenderingAttachmentInfo color{};
     color.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     color.imageView = swapChainImageViews[imageIndex];
@@ -931,24 +1123,39 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
     color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     color.clearValue.color = { {0.05f, 0.05f, 0.07f, 1.0f} };
 
+    VkRenderingAttachmentInfo depth{};
+    depth.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    depth.imageView = depthImageView;
+    depth.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+    depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth.clearValue.depthStencil = { 1.0f, 0 };
+
     VkRenderingInfo ri{};
     ri.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    ri.renderArea = { {0,0}, swapChainExtent };
+    ri.renderArea = { {0, 0}, swapChainExtent };
     ri.layerCount = 1;
     ri.colorAttachmentCount = 1;
     ri.pColorAttachments = &color;
+    ri.pDepthAttachment = &depth;
 
     vkCmdBeginRendering(cmd, &ri);
 
+    // Pipeline + dynamic state
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
     VkViewport vp{};
+    vp.x = 0.0f;
+    vp.y = 0.0f;
     vp.width = (float)swapChainExtent.width;
     vp.height = (float)swapChainExtent.height;
+    vp.minDepth = 0.0f;
     vp.maxDepth = 1.0f;
     vkCmdSetViewport(cmd, 0, 1, &vp);
 
-    VkRect2D scissor{}; scissor.extent = swapChainExtent;
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = swapChainExtent;
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
     // Bind UBO
@@ -1004,30 +1211,30 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
         vkCmdDraw(cmd, (uint32_t)vertices.size(), 1, 0, 0);
     }
 
-    // --- Draw billboarded icons for lights ---
+    // --- Draw light spheres (emissive) ---
     vkCmdBindVertexBuffers(cmd, 0, 1, &lightIconVBO, offs);
 
-    // Static white light icon (shininess=0 => icon mode in shader)
+    // Static white light sphere (Ks.w = 0 => icon/emissive in shader)
     {
         PushConstants pc{};
-        pc.model = billboardAt(lastUBO.light1Pos, lastUBO.view);
+        pc.model = glm::translate(glm::mat4(1.0f), lastUBO.light1Pos);
         pc.Ka = glm::vec4(1, 1, 1, 1);
         pc.Kd = glm::vec4(1, 1, 1, 1);
         pc.Ks = glm::vec4(0, 0, 0, 0); // w=0 => icon mode
         vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             0, sizeof(PushConstants), &pc);
-        vkCmdDraw(cmd, (uint32_t)lightIconVerts.size(), 1, 0, 0);
+        vkCmdDraw(cmd, lightIconVertexCount, 1, 0, 0);
     }
-    // Rotating red light icon
+    // Rotating red light sphere
     {
         PushConstants pc{};
-        pc.model = billboardAt(lastUBO.light2Pos, lastUBO.view);
+        pc.model = glm::translate(glm::mat4(1.0f), lastUBO.light2Pos);
         pc.Ka = glm::vec4(1, 0, 0, 1);
         pc.Kd = glm::vec4(1, 0, 0, 1);
         pc.Ks = glm::vec4(0, 0, 0, 0); // icon mode
         vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             0, sizeof(PushConstants), &pc);
-        vkCmdDraw(cmd, (uint32_t)lightIconVerts.size(), 1, 0, 0);
+        vkCmdDraw(cmd, lightIconVertexCount, 1, 0, 0);
     }
 
     vkCmdEndRendering(cmd);
@@ -1041,7 +1248,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cmd, uint32_t
     toPresent.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     toPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     toPresent.image = swapChainImages[imageIndex];
-    toPresent.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0,1,0,1 };
+    toPresent.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
     VkDependencyInfo depPresent{};
     depPresent.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -1061,11 +1268,11 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     GlobalUBO ubo{};
 
     // Camera
-    glm::vec3 eye(2.4f, 1.8f, 2.4f);
+    glm::vec3 eye(2.4f, 1.4f, .8f);
     glm::vec3 center(0, 0, 0);
-    glm::vec3 up(0, 0, 1); // Z-up to match GLM + Vulkan depth convention here
+    glm::vec3 up(0, 0, 1); // Z-up
     ubo.view = glm::lookAt(eye, center, up);
-    ubo.proj = glm::perspective(glm::radians(90.0f),
+    ubo.proj = glm::perspective(glm::radians(80.0f),
         swapChainExtent.width / (float)swapChainExtent.height,
         0.1f, 20.0f);
     ubo.proj[1][1] *= -1; // Vulkan clip space
@@ -1075,14 +1282,16 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     ubo.light1Pos = glm::vec3(.0f, .0f, 1.f);
     ubo.light1Col = glm::vec3(1.0f, 1.0f, 1.0f);
 
-    // Light 2: red rotating around Y-axis, horizontal circle at fixed height
-    float radius = 2.0f;
-    float x = radius * std::cos(t);
-    float z = radius * std::sin(t);
-    ubo.light2Pos = glm::vec3(x, 0.8f, z);
+    // Red light: orbit in XY plane
+    const glm::vec3 C = glm::vec3(0.0f, 0.8f, 0.0f); // orbit center
+    const float R = 2.2f;                             // radius
+    const float omega = 0.8f;                         // speed
+    float theta = omega * t;
+
+    ubo.light2Pos = C + glm::vec3(R * std::cos(theta), R * std::sin(theta), 0.0f);
     ubo.light2Col = glm::vec3(1.0f, 0.1f, 0.1f);
 
-    // Write to mapped buffer and cache for billboard helper
+    // Write + cache
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
     lastUBO = ubo;
 }
@@ -1291,15 +1500,13 @@ uint32_t HelloTriangleApplication::findMemoryType(uint32_t bits, VkMemoryPropert
 
 // Build a world-space matrix that faces the camera (camera-facing quad)
 glm::mat4 HelloTriangleApplication::billboardAt(const glm::vec3& pos, const glm::mat4& view) {
-    // Take the rotation portion of the view matrix, transpose (inverse) it,
-    // so the quad faces the camera; keep translation at 'pos'.
     glm::mat4 M(1.0f);
     M[0] = glm::vec4(view[0][0], view[1][0], view[2][0], 0.0f);
     M[1] = glm::vec4(view[0][1], view[1][1], view[2][1], 0.0f);
     M[2] = glm::vec4(view[0][2], view[1][2], view[2][2], 0.0f);
     M = glm::transpose(M);           // inverse rotation
     M[3] = glm::vec4(pos, 1.0f);     // place at light position
-    return M; // scale is from vertex data (±0.1)
+    return M;
 }
 
 // --- Callbacks & debug ---

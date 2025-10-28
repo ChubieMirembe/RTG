@@ -483,6 +483,9 @@ each part of the Phong model contributes to the final appearance.
 ```
 
 **Output:**
+![](Images/ex6_1.png)
+![](Images/ex6_2.png)
+![](Images/ex6_3.png)
 
 **Reflection:**
 
@@ -490,6 +493,9 @@ each part of the Phong model contributes to the final appearance.
 ### FURTHER EXPLORATION 
 
 **Solution:**
+
+
+**Output:**
 
 
 ***Reflection:***
