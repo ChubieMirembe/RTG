@@ -17,13 +17,24 @@ void main() {
     vec3 lightColor      = vec3(1.0);
     vec3 ambientMaterial = vec3(0.2, 0.1, 0.2);
     vec3 diffMaterial    = vec3(1.0);
+    vec3 specMaterial    = vec3(1.0);
 
-    vec3 n = normalize(fragWorldNormal);
-    vec3 l = normalize(ubo.lightPos - fragWorldPos);
+    float shininess = 32.0;
 
-    float diff   = max(dot(n, l), 0.0);
+    vec3 N = normalize(fragWorldNormal);
+    vec3 L = normalize(ubo.lightPos - fragWorldPos);
+    vec3 V = normalize(ubo.eyePos - fragWorldPos);
+    vec3 R = reflect(-L, N);
+
+    float diff = max(dot(N, L), 0.0);
     vec3 diffuse = diff * lightColor;
 
-    vec3 color = ambientMaterial * lightColor + diffMaterial * diffuse;
+    float spec = pow(max(dot(R, V), 0.0), shininess);
+    vec3 specular = specMaterial * lightColor * spec;
+
+    vec3 color = ambientMaterial * lightColor
+               + diffMaterial * diffuse
+               + specular;
+
     outColor = vec4(color, 1.0);
 }

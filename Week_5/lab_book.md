@@ -406,17 +406,70 @@ cube and responds properly to rotation. These experiments helped me clearly see 
 #### Goal: Complete the reflection model implemented in Exercise 3 by adding specular highlights to the fragment shader.
 
 **Solution:**
+In this exercise I completed the lighting model by moving the specular component from the vertex shader into the fragment shader so the ambient diffuse and specular lighting are
+now calculated for every pixel. The vertex shader simply transforms each vertex to world space and passes the world position and world normal into the fragment shader. The 
+fragment shader uses these interpolated values to compute the Phong reflection model with the light direction view direction and reflection vector all evaluated per fragment. 
+This produces a more accurate result because the specular effect no longer depends on vertex interpolation. By updating the shader responsibilities in this way the lighting now 
+responds smoothly and correctly across the entire surface which successfully completes the requirements of the exercise.
 
 ```c++
+#version 450
+
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+    vec3 lightPos;
+    vec3 eyePos;
+} ubo;
+
+layout(location = 0) in vec3 fragWorldPos;
+layout(location = 1) in vec3 fragWorldNormal;
+
+layout(location = 0) out vec4 outColor;
+
+void main() {
+    vec3 lightColor      = vec3(1.0);
+    vec3 ambientMaterial = vec3(0.2, 0.1, 0.2);
+    vec3 diffMaterial    = vec3(1.0);
+    vec3 specMaterial    = vec3(1.0);
+
+    float shininess = 32.0;
+
+    vec3 N = normalize(fragWorldNormal);
+    vec3 L = normalize(ubo.lightPos - fragWorldPos);
+    vec3 V = normalize(ubo.eyePos - fragWorldPos);
+    vec3 R = reflect(-L, N);
+
+    float diff = max(dot(N, L), 0.0);
+    vec3 diffuse = diff * lightColor;
+
+    float spec = pow(max(dot(R, V), 0.0), shininess);
+    vec3 specular = specMaterial * lightColor * spec;
+
+    vec3 color = ambientMaterial * lightColor
+               + diffMaterial * diffuse
+               + specular;
+
+    outColor = vec4(color, 1.0);
+}
 ```
-```c++
-```
-```c++
-```
+
 
 **Output:**
 
-**Reflection:**
+- 70 degrees view:
+![](Images/ex5_1.png)
+
+- 80 degrees view:
+![](Images/ex5_2.png)
+
+- **Reflection:**
+Moving the specular calculation into the fragment shader resulted in a clear visual improvement. In the previous exercise the highlight appeared soft and sometimes stretched 
+because it was being interpolated across the triangles. After making the change the highlight became sharper and more realistic because it was calculated independently for 
+each pixel. I experimented with different shininess values and light and camera positions to see how the highlight changed based on surface orientation and viewing angle. 
+Through these tests I gained a better understanding of why per fragment lighting is preferred when trying to achieve higher visual quality in real time rendering and how 
+each part of the Phong model contributes to the final appearance.
 
 ### EXERCISE 6: MULTIPLE LIGHTS AND MATERIALS
 
