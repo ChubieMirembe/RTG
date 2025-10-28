@@ -474,12 +474,196 @@ each part of the Phong model contributes to the final appearance.
 ### EXERCISE 6: MULTIPLE LIGHTS AND MATERIALS
 
 **Solution:**
+In this exercise, I implemented three cubes with different material properties (gold, jade, and plastic red), lit by two point lights where the 
+static white light remains fixed above the scene and the red light rotates dynamically about the Y-axis by animating its position in the XZ-plane 
+using cosine and sine over time. A Global UBO was used to store the camera matrices and both light properties, while push constants supplied each
+cube’s model matrix and unique material settings (Ka, Kd, Ks, shininess), allowing the same cube geometry to be drawn three times with visibly 
+distinct shading. The fragment shader performs Phong lighting using the two lights, producing ambient, diffuse, and specular contributions per 
+fragment. Small emissive spheres were rendered at each light position as visual indicators (“pictures”) of the light sources so their placement and 
+motion are clearly visible. Normals were transformed into world space to ensure accurate lighting calculations, and overall this setup fully meets 
+the assignment requirements for multiple materials, two lights, and an animated red light rotating about the Y-axis.
 
 ```c++
+struct Vertex {
+    glm::vec3 pos;
+    glm::vec3 color;   // optional, kept for compatibility
+    glm::vec3 normal;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription b{};
+        b.binding = 0;
+        b.stride = sizeof(Vertex);
+        b.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        return b;
+    }
+    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 3> a{};
+        a[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos) };
+        a[1] = { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color) };
+        a[2] = { 2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal) };
+        return a;
+    }
+};
 ```
 ```c++
+struct GlobalUBO {
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
+    alignas(16) glm::vec3 eyePos;      float _pad0{0.f};
+    alignas(16) glm::vec3 light1Pos;   float _pad1{0.f};   // static white
+    alignas(16) glm::vec3 light1Col;   float _pad2{0.f};
+    alignas(16) glm::vec3 light2Pos;   float _pad3{0.f};   // rotating red
+    alignas(16) glm::vec3 light2Col;   float _pad4{0.f};
+};
+
+struct PushConstants {
+    glm::mat4 model;
+    glm::vec4 Ka; // ambient
+    glm::vec4 Kd; // diffuse
+    glm::vec4 Ks; // specular (w = shininess; if 0 => used as “icon mode” in shader)
+};
 ```
 ```c++
+void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
+    static auto start = std::chrono::high_resolution_clock::now();
+    auto now   = std::chrono::high_resolution_clock::now();
+    float t    = std::chrono::duration<float>(now - start).count();
+
+    GlobalUBO ubo{};
+
+    // Camera
+    glm::vec3 eye(2.4f, 1.4f, 0.8f);
+    glm::vec3 center(0.0f, 0.0f, 0.0f);
+    glm::vec3 up(0.0f, 0.0f, 1.0f); // Z-up
+    ubo.view = glm::lookAt(eye, center, up);
+    ubo.proj = glm::perspective(glm::radians(80.0f),
+        swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 20.0f);
+    ubo.proj[1][1] *= -1; // Vulkan NDC
+    ubo.eyePos = eye;
+
+    // Static white light above origin
+    ubo.light1Pos = glm::vec3(0.0f, 0.0f, 1.0f);
+    ubo.light1Col = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    // Rotating red light: orbit in XZ plane (rotate around Y-axis)
+    const glm::vec3 C = glm::vec3(0.0f, 0.8f, 0.0f);  // orbit center
+    const float     R = 2.2f;                         // radius
+    const float omega = 0.8f;                         // angular speed
+    const float theta = omega * t;
+
+    ubo.light2Pos = C + glm::vec3(R * std::cos(theta), 0.0f, R * std::sin(theta));
+    ubo.light2Col = glm::vec3(1.0f, 0.1f, 0.1f);
+
+    // Upload
+    memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+
+    // If you render light icons later, cache the positions used while recording:
+    lastUBO = ubo;
+}
+```
+```c++
+#version 460
+
+layout(location = 0) in vec3 inPosition;
+layout(location = 1) in vec3 inColor;   // unused here
+layout(location = 2) in vec3 inNormal;
+
+layout(binding = 0) uniform GlobalUBO {
+    mat4 view;
+    mat4 proj;
+    vec3 eyePos; float _pad0;
+    vec3 light1Pos; float _pad1;
+    vec3 light1Col; float _pad2;
+    vec3 light2Pos; float _pad3;
+    vec3 light2Col; float _pad4;
+} ubo;
+
+layout(push_constant) uniform Push {
+    mat4 model;
+    vec4 Ka;
+    vec4 Kd;
+    vec4 Ks; // Ks.w = shininess (if 0, fragment treats as icon/emissive)
+} pc;
+
+layout(location = 0) out vec3 vWorldPos;
+layout(location = 1) out vec3 vWorldNormal;
+
+void main() {
+    vec4 worldPos = pc.model * vec4(inPosition, 1.0);
+    vWorldPos = worldPos.xyz;
+
+    // If you have non-uniform scale, use inverse-transpose of pc.model
+    mat3 normalMat = mat3(pc.model);
+    vWorldNormal = normalize(normalMat * inNormal);
+
+    gl_Position = ubo.proj * ubo.view * worldPos;
+}
+
+```
+```c++
+#version 460
+
+layout(location = 0) in vec3 vWorldPos;
+layout(location = 1) in vec3 vWorldNormal;
+
+layout(location = 0) out vec4 outColor;
+
+layout(binding = 0) uniform GlobalUBO {
+    mat4 view;
+    mat4 proj;
+    vec3 eyePos; float _pad0;
+    vec3 light1Pos; float _pad1;
+    vec3 light1Col; float _pad2;
+    vec3 light2Pos; float _pad3;
+    vec3 light2Col; float _pad4;
+} ubo;
+
+layout(push_constant) uniform Push {
+    mat4 model;
+    vec4 Ka;    // ambient
+    vec4 Kd;    // diffuse
+    vec4 Ks;    // specular; Ks.w = shininess (0 => emissive icon)
+} pc;
+
+vec3 phongLight(vec3 N, vec3 V, vec3 P, vec3 Lpos, vec3 Lcol,
+                vec3 Ka, vec3 Kd, vec3 Ks, float shininess)
+{
+    vec3 L = normalize(Lpos - P);
+    vec3 R = reflect(-L, N);
+
+    float NdotL = max(dot(N, L), 0.0);
+    float RdotV = max(dot(R, V), 0.0);
+
+    vec3 ambient  = Ka * Lcol;
+    vec3 diffuse  = Kd * Lcol * NdotL;
+    vec3 specular = Ks * Lcol * pow(RdotV, shininess);
+
+    return ambient + diffuse + specular;
+}
+
+void main() {
+    // Emissive icon mode: if Ks.w == 0, just show Ka/Kd as a tint with strong emission.
+    if (pc.Ks.w == 0.0) {
+        vec3 emissive = mix(pc.Ka.rgb, pc.Kd.rgb, 0.5);
+        outColor = vec4(emissive, 1.0);
+        return;
+    }
+
+    vec3 N = normalize(vWorldNormal);
+    vec3 V = normalize(ubo.eyePos - vWorldPos);
+
+    vec3 Ka = pc.Ka.rgb;
+    vec3 Kd = pc.Kd.rgb;
+    vec3 Ks = pc.Ks.rgb;
+    float shininess = max(pc.Ks.w, 1.0);
+
+    vec3 c1 = phongLight(N, V, vWorldPos, ubo.light1Pos, ubo.light1Col, Ka, Kd, Ks, shininess);
+    vec3 c2 = phongLight(N, V, vWorldPos, ubo.light2Pos, ubo.light2Col, Ka, Kd, Ks, shininess);
+
+    vec3 color = c1 + c2;
+    outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+}
+
 ```
 
 **Output:**
@@ -488,7 +672,12 @@ each part of the Phong model contributes to the final appearance.
 ![](Images/ex6_3.png)
 
 **Reflection:**
-
+This task reinforced the importance of correctly interpreting axis-based rotation in 3D graphics, as the light must move in the XZ-plane to 
+genuinely rotate about the Y-axis. I also learned the benefit of separating global and per-object rendering data (lights and camera in a UBO, 
+materials in push constants) as this makes the pipeline more organised and efficient. Performing lighting in world space removed ambiguity 
+around coordinate transforms, leading to more predictable results. Using emissive icons for light sources proved very helpful for debugging 
+and presentation, showing behaviour clearly without additional UI elements. Overall, this exercise strengthened my understanding of real-time 
+lighting, material properties, and animated illumination in Vulkan.
 
 ### FURTHER EXPLORATION 
 
