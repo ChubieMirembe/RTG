@@ -155,6 +155,15 @@ applying the proper inverse-transpose operation to transform normals, calculatin
 final lit color to the fragColor output. The fragment shader remains a simple pass-through. Since the cube already uses 36 vertices with 
 per-face normals, no changes to the C++ pipeline were required for this exercise. The result meets the goal of Exercise 2: to perform 
 lighting at the vertex stage and observe the faceted shading effect.
+
+- Pipeline Shader Stage Update:
+```c++
+uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+```
+- Drawing Command (no change from Exercise 1):
+```c++
+vkCmdDraw(commandBuffer, static_cast<uint16_t>(vertices.size()), 1, 0, 0);
+```
 ```c++
 #version 450
 
@@ -163,11 +172,11 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
     vec3 lightPos;
-    vec3 eyePos; // kept for later exercises
+    vec3 eyePos; 
 } ubo;
 
 layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inColor;   // not used in the calc here
+layout(location = 1) in vec3 inColor;   
 layout(location = 2) in vec3 inNormal;
 
 layout(location = 0) out vec3 fragColor;
@@ -211,19 +220,103 @@ stage in the next exercise for smoother results.
 #### Goal: Improve visual quality by moving the lighting logic to the fragment shader, allowing for smoother, more accurate calculations.
 
 **Solution:**
+I completed per fragment diffuse lighting by shifting the lighting calculations from the vertex 
+shader to the fragment shader. The vertex shader now transforms each vertex to world space, 
+computes a world space normal using the inverse transpose of the model matrix, and passes only 
+world position and world normal to the fragment stage. I updated the descriptor set layout so the 
+uniform buffer can be read in the fragment stage. I also exposed the normal attribute in the vertex 
+input descriptions and removed the unused index buffer bind since the draw is non indexed. The 
+fragment shader reads the interpolated world position and world normal, builds a unit light 
+direction from the uniform light position, and evaluates ambient plus diffuse to produce the final 
+color per pixel, with no tint from vertex colors. The result is a cube rendered with a single base 
+hue whose faces vary only by brightness according to the light direction.
 
+- Vertex Shader:
 ```c++
-```
-```c++
-```
-```c++
-```
+#version 450
 
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+    vec3 lightPos;
+    vec3 eyePos; // kept for later work
+} ubo;
+
+layout(location = 0) in vec3 inPosition;
+layout(location = 1) in vec3 inColor;   // not used for lighting here
+layout(location = 2) in vec3 inNormal;
+
+layout(location = 0) out vec3 fragWorldPos;
+layout(location = 1) out vec3 fragWorldNormal;
+
+void main() {
+    vec4 worldPosition = ubo.model * vec4(inPosition, 1.0);
+    fragWorldPos = worldPosition.xyz;
+
+    mat3 normalMatrix = transpose(inverse(mat3(ubo.model)));
+    fragWorldNormal = normalize(normalMatrix * inNormal);
+
+    gl_Position = ubo.proj * ubo.view * worldPosition;
+}
+```
+- Fragment Shader:
+```c++
+#version 450
+
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+    vec3 lightPos;
+    vec3 eyePos;
+} ubo;
+
+layout(location = 0) in vec3 fragWorldPos;
+layout(location = 1) in vec3 fragWorldNormal;
+
+layout(location = 0) out vec4 outColor;
+
+void main() {
+    vec3 lightColor      = vec3(1.0);
+    vec3 ambientMaterial = vec3(0.2, 0.1, 0.2);
+    vec3 diffMaterial    = vec3(1.0);
+
+    vec3 n = normalize(fragWorldNormal);
+    vec3 l = normalize(ubo.lightPos - fragWorldPos);
+
+    float diff   = max(dot(n, l), 0.0);
+    vec3 diffuse = diff * lightColor;
+
+    vec3 color = ambientMaterial * lightColor + diffMaterial * diffuse;
+    outColor = vec4(color, 1.0);
+}
+```
+```c++
+static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+    attributeDescriptions[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos)    };
+    attributeDescriptions[1] = { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)  };
+    attributeDescriptions[2] = { 2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal) };
+    return attributeDescriptions;
+}
+```
+```c++
+uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+```
 **Output:**
-
+![](Images/ex3.png)
 
 **Reflection:**
-
+This exercise made the benefit of pixel shading very clear. In the previous exercise the lighting 
+was calculated per vertex and then interpolated, which produced a faceted and slightly flat 
+appearance across the cube’s faces. After moving the lighting to the fragment shader, the normals 
+and positions are interpolated first and the lighting is evaluated at every pixel, which produces 
+smoother shading and a more natural falloff of light across surfaces. I also reinforced two 
+practical Vulkan details that matter for correctness and debugging. First, stage visibility must 
+include the fragment stage when a shader reads the uniform buffer there. Second, the pipeline must
+advertise every vertex attribute actually used by the shaders, including normals, and state should 
+not bind resources that are not used, such as an index buffer when drawing non indexed geometry.
 
 
 --- 
