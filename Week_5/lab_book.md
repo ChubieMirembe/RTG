@@ -305,7 +305,12 @@ static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions
 uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 ```
 **Output:**
-![](Images/ex3.png)
+
+- 70 degrees view:
+![](Images/ex3_1.png)
+
+- 80 degrees view:
+![](Images/ex3_2.png)
 
 **Reflection:**
 This exercise made the benefit of pixel shading very clear. In the previous exercise the lighting 
@@ -383,10 +388,10 @@ void main() {
 **Output:**
 
 - 70 degrees view:
-!(Images/ex4_1.png)
+![](Images/ex4_1.png)
 
 - 80 degrees view:
-!(Images/ex4_2.png)
+![](Images/ex4_2.png)
 
 **Reflection:**
 Initially, I could not see the difference between Exercise 3 and Exercise 4, because the specular term was subtle and was being overshadowed by the diffuse lighting. 
