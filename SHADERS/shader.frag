@@ -1,40 +1,55 @@
-#version 450
+#version 460
 
-layout(binding = 0) uniform UniformBufferObject {
-    mat4 model;
-    mat4 view;
-    mat4 proj;
-    vec3 lightPos;
-    vec3 eyePos;
-} ubo;
-
-layout(location = 0) in vec3 fragWorldPos;
-layout(location = 1) in vec3 fragWorldNormal;
+layout(location = 0) in vec3 vWorldPos;
+layout(location = 1) in vec3 vWorldNormal;
 
 layout(location = 0) out vec4 outColor;
 
-void main() {
-    vec3 lightColor      = vec3(1.0);
-    vec3 ambientMaterial = vec3(0.2, 0.1, 0.2);
-    vec3 diffMaterial    = vec3(1.0);
-    vec3 specMaterial    = vec3(1.0);
+layout(binding = 0) uniform GlobalUBO {
+    mat4 view;
+    mat4 proj;
+    vec3 eyePos; float _pad0;
+    vec3 light1Pos; float _pad1;
+    vec3 light1Col; float _pad2;
+    vec3 light2Pos; float _pad3;
+    vec3 light2Col; float _pad4;
+} ubo;
 
-    float shininess = 32.0;
+layout(push_constant) uniform Push {
+    mat4 model;
+    vec4 Ka;    // ambient
+    vec4 Kd;    // diffuse
+    vec4 Ks;    // specular; Ks.w = shininess
+} pc;
 
-    vec3 N = normalize(fragWorldNormal);
-    vec3 L = normalize(ubo.lightPos - fragWorldPos);
-    vec3 V = normalize(ubo.eyePos - fragWorldPos);
+vec3 phongLight(vec3 N, vec3 V, vec3 P, vec3 Lpos, vec3 Lcol,
+                vec3 Ka, vec3 Kd, vec3 Ks, float shininess)
+{
+    vec3 L = normalize(Lpos - P);
     vec3 R = reflect(-L, N);
 
-    float diff = max(dot(N, L), 0.0);
-    vec3 diffuse = diff * lightColor;
+    float NdotL = max(dot(N, L), 0.0);
+    float RdotV = max(dot(R, V), 0.0);
 
-    float spec = pow(max(dot(R, V), 0.0), shininess);
-    vec3 specular = specMaterial * lightColor * spec;
+    vec3 ambient  = Ka * Lcol;
+    vec3 diffuse  = Kd * Lcol * NdotL;
+    vec3 specular = Ks * Lcol * pow(RdotV, shininess);
 
-    vec3 color = ambientMaterial * lightColor
-               + diffMaterial * diffuse
-               + specular;
+    return ambient + diffuse + specular;
+}
 
-    outColor = vec4(color, 1.0);
+void main() {
+    vec3 N = normalize(vWorldNormal);
+    vec3 V = normalize(ubo.eyePos - vWorldPos);
+
+    vec3 Ka = pc.Ka.rgb;
+    vec3 Kd = pc.Kd.rgb;
+    vec3 Ks = pc.Ks.rgb;
+    float shininess = max(pc.Ks.w, 1.0);
+
+    vec3 c1 = phongLight(N, V, vWorldPos, ubo.light1Pos, ubo.light1Col, Ka, Kd, Ks, shininess);
+    vec3 c2 = phongLight(N, V, vWorldPos, ubo.light2Pos, ubo.light2Col, Ka, Kd, Ks, shininess);
+
+    vec3 color = c1 + c2;
+    outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
