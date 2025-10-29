@@ -104,7 +104,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLM\include;..\GLFW\lib-vc2022;$(ProjectDir)Week_3;C:\Users\984381\source\repos\ChubieMirembe\RTG\packages\Assimp_native_4.1.4.1.0\build\native\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLM\include;..\GLFW\lib-vc2022;$(ProjectDir)Week_3;C:\Users\984381\source\repos\ChubieMirembe\RTG\packages\Assimp_native_4.1.4.1.0\build\native\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\STB</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableModules>true</EnableModules>
     </ClCompile>
@@ -178,6 +178,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Dependencies\STB\stb_image.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
