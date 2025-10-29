@@ -1524,12 +1524,10 @@ void HelloTriangleApplication::copyBufferToImage(
 
 void HelloTriangleApplication::createTextureImage() {
     int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load("textures/texture.jpg",
-        &texWidth, &texHeight, &texChannels,
-        STBI_rgb_alpha);
-    if (!pixels) {
-        throw std::runtime_error("failed to load texture image!");
-    }
+    stbi_uc* pixels = stbi_load("Assets/Week_6/walls.jpg",
+        &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    if (!pixels) throw std::runtime_error("failed to load texture image!");
+    
     VkDeviceSize imageSize = static_cast<VkDeviceSize>(texWidth) *
         static_cast<VkDeviceSize>(texHeight) * 4;
 
