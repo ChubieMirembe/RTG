@@ -829,16 +829,17 @@ void HelloTriangleApplication::createUniformBuffers() {
     }
 }
 
+
 void HelloTriangleApplication::createDescriptorPool() {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
-    poolSizes[0] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,        MAX_FRAMES_IN_FLIGHT };
-    poolSizes[1] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,MAX_FRAMES_IN_FLIGHT };
+    poolSizes[0] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         MAX_FRAMES_IN_FLIGHT };
+    poolSizes[1] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_FRAMES_IN_FLIGHT };
 
     VkDescriptorPoolCreateInfo poolInfo{};
-    poolInfo.poolSizeCount = poolSizes.size();
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
     poolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
-
 
     if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create descriptor pool!");
@@ -885,8 +886,7 @@ void HelloTriangleApplication::createDescriptorSets() {
         writes[1].descriptorCount = 1;
         writes[1].pImageInfo = &imageInfo;
 
-        vkUpdateDescriptorSets(device, writes.size(), writes.data(), 0, nullptr);
-
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr); // cast size
     }
 }
 
@@ -1056,25 +1056,34 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
     VkViewport viewport{};
+    viewport.x = 0.0f; // set origin
+    viewport.y = 0.0f;
     viewport.width = static_cast<float>(swapChainExtent.width);
     viewport.height = static_cast<float>(swapChainExtent.height);
-	viewport.minDepth = 0.0f;
+    viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-
     VkRect2D scissor{};
+    scissor.offset = { 0, 0 }; // set origin
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     VkBuffer vertexBuffers[] = { vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-    /*vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint16_t>(indices.size()), 1, 0, 0, 0);*/
 
-    vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+    // Bind descriptors (required for UBO/sampler)
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+    if (!indices.empty() && indexBuffer != VK_NULL_HANDLE) {
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    }
+    else {
+        vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+    }
 
     vkCmdEndRendering(commandBuffer);
 
@@ -1536,12 +1545,19 @@ void HelloTriangleApplication::copyBufferToImage(
 }
 
 void HelloTriangleApplication::createTextureImage() {
-    int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load("../../Assets/Week_6/walls.jpg",
-        &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    if (!pixels) std::cerr << "Texture load failed!\n";
-    if (!pixels) throw std::runtime_error("failed to load texture image!");
-    
+    int texWidth = 0, texHeight = 0, texChannels = 0;
+
+    // Try common names without logging
+    stbi_uc* pixels = nullptr;
+    const char* candidates[] = { "wall.jpg", "walls.jpg" };
+    for (const char* name : candidates) {
+        pixels = stbi_load(name, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        if (pixels) break;
+    }
+    if (!pixels) {
+        throw std::runtime_error("failed to load texture image!");
+    }
+
     VkDeviceSize imageSize = static_cast<VkDeviceSize>(texWidth) *
         static_cast<VkDeviceSize>(texHeight) * 4;
 
@@ -1558,7 +1574,6 @@ void HelloTriangleApplication::createTextureImage() {
     vkMapMemory(device, stagingMemory, 0, imageSize, 0, &data);
     std::memcpy(data, pixels, static_cast<size_t>(imageSize));
     vkUnmapMemory(device, stagingMemory);
-
     stbi_image_free(pixels);
 
     // device-local image

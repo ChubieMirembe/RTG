@@ -182,6 +182,9 @@
   <ItemGroup>
     <ClInclude Include="Dependencies\STB\stb_image.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Week_6\walls.jpg" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="packages\assimp_native.redist.4.0.1\build\native\assimp_native.redist.targets" Condition="Exists('packages\assimp_native.redist.4.0.1\build\native\assimp_native.redist.targets')" />
