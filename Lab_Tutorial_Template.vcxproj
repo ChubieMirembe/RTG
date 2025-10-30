@@ -183,7 +183,7 @@
     <ClInclude Include="Dependencies\STB\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Assets\Week_6\walls.jpg" />
+    <Image Include="x64\Debug\wall.jpg" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

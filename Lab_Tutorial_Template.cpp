@@ -706,7 +706,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -1114,10 +1114,9 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.5f))
-        * glm::rotate(glm::mat4(1.0f), time * glm::radians(45.0f),
+    ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f),
             glm::vec3(0.0f, 1.0f, 0.0f));
-    ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f),
+    ubo.view = glm::lookAt(glm::vec3(0.0f, 2.0f, 3.0f),
         glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f),
@@ -1545,69 +1544,44 @@ void HelloTriangleApplication::copyBufferToImage(
 }
 
 void HelloTriangleApplication::createTextureImage() {
-    int texWidth = 0, texHeight = 0, texChannels = 0;
-
-    // Try common names without logging
-    stbi_uc* pixels = nullptr;
-    const char* candidates[] = { "wall.jpg", "walls.jpg" };
-    for (const char* name : candidates) {
-        pixels = stbi_load(name, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        if (pixels) break;
-    }
+    int texWidth, texHeight, texChannels;
+    stbi_uc* pixels = stbi_load("wall.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     if (!pixels) {
         throw std::runtime_error("failed to load texture image!");
     }
 
-    VkDeviceSize imageSize = static_cast<VkDeviceSize>(texWidth) *
-        static_cast<VkDeviceSize>(texHeight) * 4;
+    VkDeviceSize imageSize = texWidth * texHeight * 4;
 
-    // staging buffer
-    VkBuffer stagingBuffer{};
-    VkDeviceMemory stagingMemory{};
-    createBuffer(imageSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer, stagingMemory);
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer, stagingBufferMemory);
 
-    void* data = nullptr;
-    vkMapMemory(device, stagingMemory, 0, imageSize, 0, &data);
-    std::memcpy(data, pixels, static_cast<size_t>(imageSize));
-    vkUnmapMemory(device, stagingMemory);
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(imageSize));
+    vkUnmapMemory(device, stagingBufferMemory);
     stbi_image_free(pixels);
 
-    // device-local image
-    createImage(
-        static_cast<uint32_t>(texWidth),
-        static_cast<uint32_t>(texHeight),
-        VK_FORMAT_R8G8B8A8_SRGB,
+    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        textureImage, textureImageMemory
-    );
+        textureImage, textureImageMemory);
 
-    // transitions + copy
-    transitionImageLayout(textureImage,
-        VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+    copyBufferToImage(stagingBuffer, textureImage, texWidth, texHeight);
+    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_IMAGE_ASPECT_COLOR_BIT);
 
-    copyBufferToImage(stagingBuffer, textureImage,
-        static_cast<uint32_t>(texWidth),
-        static_cast<uint32_t>(texHeight));
-
-    transitionImageLayout(textureImage,
-        VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT);
-
-    // cleanup staging
     vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingMemory, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
+
 
 void HelloTriangleApplication::createTextureImageView() {
     textureImageView = createImageView(
