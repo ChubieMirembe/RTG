@@ -230,7 +230,7 @@ and material systems.
 
 
 **Output:**
-
+![](Week_6/Images/ex4.png)
 
 **Reflection:**
 
