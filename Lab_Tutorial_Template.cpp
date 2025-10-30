@@ -94,7 +94,10 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
+    alignas(16) glm::vec3 lightPos;  // NEW
+    alignas(16) glm::vec3 eyePos;    // NEW (camera position in world)
 };
+
 
 std::vector<Vertex> cubeVertices = {
     // Front (+Z)
@@ -637,13 +640,13 @@ void HelloTriangleApplication::createDescriptorSetLayout() {
     ubo.binding = 0;
     ubo.descriptorCount = 1;
     ubo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkDescriptorSetLayoutBinding tex{};
     tex.binding = 1;
     tex.descriptorCount = 1;
     tex.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    tex.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    tex.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
 
     std::array<VkDescriptorSetLayoutBinding, 2> bindings{ ubo, tex };
     VkDescriptorSetLayoutCreateInfo info{};
@@ -1110,22 +1113,31 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
 
 void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float>(currentTime - startTime).count();
+    auto now = std::chrono::high_resolution_clock::now();
+    float t = std::chrono::duration<float>(now - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f));
-    ubo.view = glm::lookAt(glm::vec3(0.0f, 2.0f, 3.0f),
-        glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 1.0f, 0.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f),
-        swapChainExtent.width / (float)swapChainExtent.height,
-        0.1f, 10.0f);
+
+    // model/view/proj as you already have:
+    ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::vec3 camPos = glm::vec3(0.0f, 2.0f, 3.0f);
+    ubo.view = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
+
+    // NEW: rotating light around Y (left-to-right orbit)
+    float R = 2.0f;          // radius
+    float omega = 1.0f;      // rad/s
+    ubo.lightPos = glm::vec3(R * cosf(omega * t), 1.0f, R * sinf(omega * t));
+
+    // NEW: pass camera position for specular
+    ubo.eyePos = camPos;
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
+
+
+
 
 
 // --- Helper Implementations ---
