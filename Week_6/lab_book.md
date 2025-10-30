@@ -1,4 +1,4 @@
-# Vulkan Lab 4: Lighting Fundamentals 
+# Vulkan Lab 5: Texture Mapping
 
 
 ### EXERCISE 1: PREPARING THE APPLICATION FOR TEXTURES
@@ -40,7 +40,8 @@ struct Vertex {
         std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
         attributeDescriptions[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos) };
         attributeDescriptions[1] = { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color) };
-		attributeDescriptions[2] = { 2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, texCoord) };    // <- - Texture Coordinate
+        attributeDescriptions[1] = { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal) };
+		attributeDescriptions[2] = { 2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, texCoord) };    // <- - Texture Coordinate
         return attributeDescriptions;
     }
 };
@@ -227,12 +228,80 @@ and material systems.
 ### EXERCISE 4: BINDING AND SHADER UPDATES
 
 **Solution:**
+With the texture image, view, and sampler successfully created, I updated the descriptor set layout to include a second binding for the combined 
+image sampler. This ensured that the fragment shader could access the texture along with the uniform buffer data. The descriptor pool was expanded 
+to support both uniform buffer and sampler descriptors, and each descriptor set was written with two bindings, one for the uniform buffer (binding 0)
+and one for the texture sampler (binding 1). The shaders were then updated to include texture coordinates and a `sampler2D` uniform bound to binding 1. 
+The fragment shader sampled the texture using the interpolated UV coordinates and output the resulting texture color directly to the framebuffer. 
+The vertex structure and pipeline configuration were modified to pass texture coordinates from the vertex shader to the fragment shader. During 
+initialization, the texture setup functions `createTextureImage()`, `createTextureImageView()`, and `createTextureSampler()` were called before 
+creating vertex and index buffers so that the texture resources were ready when command buffers were recorded. In the cleanup routine, I ensured that 
+all texture-related Vulkan objects, including the sampler, image view, image, and its device memory, were properly destroyed to prevent resource leaks. 
+This completed the full Vulkan texture-loading workflow, allowing the cube to render with the applied texture. Through this exercise, I gained a clear 
+understanding of how Vulkan handles image creation, memory transitions, descriptor bindings, and sampler configuration to enable textured rendering.
 
+```c++
+// Add sampler binding alongside the existing UBO
+VkDescriptorSetLayoutBinding ubo{};
+ubo.binding = 0;
+ubo.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+ubo.descriptorCount = 1;
+ubo.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+
+VkDescriptorSetLayoutBinding sampler{};
+sampler.binding = 1;                                       // New binding
+sampler.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+sampler.descriptorCount = 1;
+sampler.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+std::array<VkDescriptorSetLayoutBinding, 2> bindings{ ubo, sampler };
+
+VkDescriptorSetLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+layoutInfo.pBindings    = bindings.data();
+
+vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout);
+```
+```c++
+std::array<VkDescriptorPoolSize, 2> poolSizes{};
+poolSizes[0] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         MAX_FRAMES_IN_FLIGHT };
+poolSizes[1] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_FRAMES_IN_FLIGHT }; // new
+
+VkDescriptorPoolCreateInfo poolInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+poolInfo.pPoolSizes    = poolSizes.data();
+poolInfo.maxSets       = MAX_FRAMES_IN_FLIGHT;
+
+vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
+```
+
+```c++
+VkDescriptorImageInfo imageInfo{};
+imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+imageInfo.imageView   = textureImageView;
+imageInfo.sampler     = textureSampler;
+
+VkWriteDescriptorSet samplerWrite{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+samplerWrite.dstSet          = descriptorSets[i];
+samplerWrite.dstBinding      = 1; // matches layout(binding=1)
+samplerWrite.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+samplerWrite.descriptorCount = 1;
+samplerWrite.pImageInfo      = &imageInfo;
+
+vkUpdateDescriptorSets(device, 1, &samplerWrite, 0, nullptr);
+```
 
 **Output:**
 ![](Week_6/Images/ex4.png)
 
 **Reflection:**
+This exercise helped me understand how to actually get textures working in Vulkan instead of just loading them. I learned that creating the image 
+isn’t enough; you have to connect it to the shaders through descriptor layouts, descriptor sets, and samplers. Setting up the combined image sampler 
+in the descriptor layout made it clear how Vulkan links texture data to the fragment shader. I also realized how hands-on Vulkan is, since you have
+to manage every part of the process yourself, from adding the sampler binding to updating descriptor sets and binding them during draw calls.
+Writing the vertex and fragment shaders tied it all together, because I could see how the texture coordinates flowed through the pipeline to 
+sample the image. Overall, it was satisfying to finally see how everything fits together and how the CPU-side texture setup, GPU memory, and shaders 
+all work in sync to display a textured cube.
 
 --- 
 ### EXERCISE 4:ADDING PER-VERTEX SPECULAR LIGHTING
