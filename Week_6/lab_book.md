@@ -304,18 +304,80 @@ sample the image. Overall, it was satisfying to finally see how everything fits 
 all work in sync to display a textured cube.
 
 --- 
-### EXERCISE 4:ADDING PER-VERTEX SPECULAR LIGHTING
-#### Goal: : Complete the reflection model implemented in Exercise 2 by adding specular highlights to the vertex shader.
-
+### EXERCISE 5:A WOODEN CUBE
 
 **Solution:**
+For this exercise, I integrated both per-fragment lighting and a moving light sphere (gizmo) to visualize the light source. 
+The original vertex colour input from the cube geometry was replaced with a texture sampled from the converted wood.jpg image 
+(originally wood.dds). This was achieved by loading the texture through stb_image.h, creating a Vulkan image and sampler, and 
+binding it via the descriptor set at binding = 1. The fragment shader performs per-fragment Phong lighting, combining ambient, 
+diffuse, and specular terms, and uses the texture colour (texture(texSampler, vUV).rgb) instead of vertex colour to achieve the 
+wood material effect. A push constant controls the unlit white light sphere, drawn at the current light position, while the cube 
+uses the uniform buffer’s light data for dynamic illumination.
 
+- Loading Texture and Binding to Descriptor Set:
+```c++
+// Load wood.jpg texture using stb_image
+int w, h, ch;
+stbi_uc* pixels = stbi_load("wood.jpg", &w, &h, &ch, STBI_rgb_alpha);
+VkDeviceSize imageSize = (VkDeviceSize)w * h * 4;
 
+// Create a staging buffer and upload texture data
+createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    stagingBuffer, stagingMemory);
+void* data;
+vkMapMemory(device, stagingMemory, 0, imageSize, 0, &data);
+memcpy(data, pixels, (size_t)imageSize);
+vkUnmapMemory(device, stagingMemory);
+stbi_image_free(pixels);
+
+// Bind texture to descriptor set at binding = 1
+VkDescriptorImageInfo imageInfo{};
+imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+imageInfo.imageView = textureImageView;
+imageInfo.sampler = textureSampler;
+write[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+write[1].pImageInfo = &imageInfo;
+```
+- Fragment Shader with Texture Sampling and Phong Lighting:
+```c++
+vec3 N = normalize(vWorldNormal);
+vec3 L = normalize(ubo.lightPos - vWorldPos);
+vec3 V = normalize(ubo.eyePos - vWorldPos);
+vec3 R = reflect(-L, N);
+
+vec3 tex = texture(texSampler, vUV).rgb;
+
+float diff = max(dot(N, L), 0.0);
+float spec = pow(max(dot(R, V), 0.0), 32.0);
+
+vec3 ambient  = 0.15 * tex;
+vec3 diffuse  = 0.85 * diff * tex;
+vec3 specular = 0.15 * spec * vec3(1.0);
+
+outColor = vec4(ambient + diffuse + specular, 1.0);
+```
+- Dynamic Light Position Update:
+```c++
+// Update light position each frame
+float R = 1.0f, omega = 1.5f;
+ubo.lightPos = glm::vec3(R * cos(omega * t), 0.5f, R * sin(omega * t));
+```
 
 **Output:**
 
+![](Week_6/Images/ex5_1.png)
+![](Week_6/Images/ex5_2.png)]
 
 **Reflection:**
+Through this task, I deepened my understanding of how Vulkan’s per-fragment lighting pipeline integrates texture sampling, uniform 
+buffers, and push constants. I learned how texture mapping replaces per-vertex colours in the fragment stage and how descriptor 
+sets allow textures to be bound and sampled efficiently. Implementing the moving light sphere reinforced how push constants can 
+drive unlit objects without additional pipelines. I also noticed the risk of inconsistencies when computing the light position 
+separately for the UBO and for drawing the sphere. Next time, I will compute the light position once per frame and cache it, 
+reusing the same value for both the uniform buffer update and the sphere transform to avoid divergence and improve clarity and 
+performance.
 
 ### EXERCISE 5:ADDING PER-FRAGMENT SPECULAR LIGHTING
 #### Goal: Complete the reflection model implemented in Exercise 3 by adding specular highlights to the fragment shader.
