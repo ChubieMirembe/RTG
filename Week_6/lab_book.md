@@ -1,4 +1,4 @@
-# Vulkan Lab 5: Texture Mapping
+﻿# Vulkan Lab 5: Texture Mapping
 
 
 ### EXERCISE 1: PREPARING THE APPLICATION FOR TEXTURES
@@ -213,7 +213,7 @@ This exercise deepened my understanding of how Vulkan manages textures at a low 
 steps such as creating a staging buffer, transferring data to a GPU-local image, performing layout transitions, and setting up an image view and 
 sampler.
 
-The process highlighted Vulkan�s emphasis on explicit control. Each stage, from CPU data upload to GPU sampling, had to be manually defined, 
+The process highlighted Vulkan’s emphasis on explicit control. Each stage, from CPU data upload to GPU sampling, had to be manually defined, 
 including synchronization through layout transitions (UNDEFINED ? TRANSFER_DST ? SHADER_READ_ONLY). Implementing these barriers taught me how 
 crucial proper pipeline ordering is for correctness and performance.
 
@@ -296,7 +296,7 @@ vkUpdateDescriptorSets(device, 1, &samplerWrite, 0, nullptr);
 
 **Reflection:**
 This exercise helped me understand how to actually get textures working in Vulkan instead of just loading them. I learned that creating the image 
-isn�t enough; you have to connect it to the shaders through descriptor layouts, descriptor sets, and samplers. Setting up the combined image sampler 
+isn’t enough; you have to connect it to the shaders through descriptor layouts, descriptor sets, and samplers. Setting up the combined image sampler 
 in the descriptor layout made it clear how Vulkan links texture data to the fragment shader. I also realized how hands-on Vulkan is, since you have
 to manage every part of the process yourself, from adding the sampler binding to updating descriptor sets and binding them during draw calls.
 Writing the vertex and fragment shaders tied it all together, because I could see how the texture coordinates flowed through the pipeline to 
@@ -313,7 +313,7 @@ The original vertex colour input from the cube geometry was replaced with a text
 binding it via the descriptor set at binding = 1. The fragment shader performs per-fragment Phong lighting, combining ambient, 
 diffuse, and specular terms, and uses the texture colour (texture(texSampler, vUV).rgb) instead of vertex colour to achieve the 
 wood material effect. A push constant controls the unlit white light sphere, drawn at the current light position, while the cube 
-uses the uniform buffer�s light data for dynamic illumination.
+uses the uniform buffer’s light data for dynamic illumination.
 
 - Loading Texture and Binding to Descriptor Set:
 ```c++
@@ -371,7 +371,7 @@ ubo.lightPos = glm::vec3(R * cos(omega * t), 0.5f, R * sin(omega * t));
 ![](Week_6/Images/ex5_2.png)]
 
 **Reflection:**
-Through this task, I deepened my understanding of how Vulkan�s per-fragment lighting pipeline integrates texture sampling, uniform 
+Through this task, I deepened my understanding of how Vulkan’s per-fragment lighting pipeline integrates texture sampling, uniform 
 buffers, and push constants. I learned how texture mapping replaces per-vertex colours in the fragment stage and how descriptor 
 sets allow textures to be bound and sampled efficiently. Implementing the moving light sphere reinforced how push constants can 
 drive unlit objects without additional pipelines. I also noticed the risk of inconsistencies when computing the light position 
@@ -379,8 +379,74 @@ separately for the UBO and for drawing the sphere. Next time, I will compute the
 reusing the same value for both the uniform buffer update and the sphere transform to avoid divergence and improve clarity and 
 performance.
 
-### EXERCISE 5:ADDING PER-FRAGMENT SPECULAR LIGHTING
-#### Goal: Complete the reflection model implemented in Exercise 3 by adding specular highlights to the fragment shader.
+### Exercise 6. TEXTURE WRAPPING MODE
+
+**Solution:**
+I created a texture-mapped cube using the Coin.jpg texture, with each face displaying a different number of coin repetitions. This 
+was achieved by modifying the per-vertex UV coordinates rather than altering the texture or shader. I assigned UV ranges that 
+extended beyond the standard [0,1] range, causing the texture to wrap and repeat according to the sampler’s 
+VK_SAMPLER_ADDRESS_MODE_REPEAT setting. The sampler was configured to repeat in both the U and V directions, ensuring seamless 
+tiling across each face. The result was a cube where each side showed progressively more tiled coin patterns—from one on the front 
+face to six on the bottom—demonstrating effective use of texture wrapping and coordinate scaling.
+
+```c++
+auto faceUV = [&](float S, glm::vec2 uv) { return uv * S; };
+
+std::vector<Vertex> cubeVertices = {
+    // Front (+Z), 1×1 coins
+    {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1})},
+    {{ 0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,1})},
+    {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0})},
+    {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0})},
+    {{-0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,0})},
+    {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1})},
+
+    // Back (−Z), 2×2 coins
+    {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1})},
+    {{-0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,1})},
+    {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0})},
+    {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0})},
+    {{ 0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,0})},
+    {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1})},
+```
+
+```c++
+info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+```
+**Output:**
+![](Week_6/Images/ex6.png)
+
+**Reflection:**
+Through this exercise, I learned how texture coordinates directly influence how textures are mapped and repeated on 3D surfaces.
+Adjusting the UVs at the vertex level provided an intuitive way to control the scale and repetition of the texture without needing
+additional shaders or multiple draw calls. It also reinforced my understanding of how the REPEAT wrapping mode interacts with UV 
+coordinates beyond [0,1]. In future implementations, I plan to explore dynamic approaches such as using push constants or per-face
+uniform values to adjust texture scaling programmatically rather than embedding the UV scaling into the vertex data. This would
+make the solution more flexible and reusable across different models.
+
+### Exercise 7. TEXTURE FILTERING TECHNIQUES.
+
+**Solution:**
+
+**Output:**
+
+
+
+**Reflection:**
+
+### EXERCISE 8. MULTIPLE TEXTURING
+
+**Solution:**
+
+**Output:**
+
+
+
+**Reflection:**
+
+### EXERCISE 9.AN OPEN BOX 
 
 **Solution:**
 

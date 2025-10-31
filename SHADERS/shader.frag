@@ -27,7 +27,7 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
     if (pc.unlit != 0u) {
-        // emissive red for light gizmo (ignore texture/lighting)
+        // emissive white for light gizmo
         outColor = vec4(1.0, 1.0, 1.0, 1.0);
         return;
     }
