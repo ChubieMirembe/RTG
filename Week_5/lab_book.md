@@ -212,7 +212,7 @@ void main() {
 This step showed me that lighting quality depends not only on shader formulas but also on correct spaces and data flow. Using the 
 inverse-transpose for normals avoided skewed lighting when the model rotates, and performing the lighting in the vertex stage produced the 
 expected faceted look because colors are interpolated across triangles. I also saw why we kept the richer UBO from Exercise 1: it already 
-carries the transforms and light parameters needed here. With this foundation in place, I’m ready to move the lighting math to the fragment 
+carries the transforms and light parameters needed here. With this foundation in place, Iï¿½m ready to move the lighting math to the fragment 
 stage in the next exercise for smoother results.
 
 ---
@@ -240,11 +240,11 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
     vec3 lightPos;
-    vec3 eyePos; // kept for later work
+  //vec3 eyePos; 
 } ubo;
 
 layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inColor;   // not used for lighting here
+layout(location = 1) in vec3 inColor;   
 layout(location = 2) in vec3 inNormal;
 
 layout(location = 0) out vec3 fragWorldPos;
@@ -269,7 +269,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
     vec3 lightPos;
-    vec3 eyePos;
+  //vec3 eyePos;
 } ubo;
 
 layout(location = 0) in vec3 fragWorldPos;
@@ -315,7 +315,7 @@ uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGM
 **Reflection:**
 This exercise made the benefit of pixel shading very clear. In the previous exercise the lighting 
 was calculated per vertex and then interpolated, which produced a faceted and slightly flat 
-appearance across the cube’s faces. After moving the lighting to the fragment shader, the normals 
+appearance across the cube's faces. After moving the lighting to the fragment shader, the normals 
 and positions are interpolated first and the lighting is evaluated at every pixel, which produces 
 smoother shading and a more natural falloff of light across surfaces. I also reinforced two 
 practical Vulkan details that matter for correctness and debugging. First, stage visibility must 
@@ -477,9 +477,9 @@ each part of the Phong model contributes to the final appearance.
 In this exercise, I implemented three cubes with different material properties (gold, jade, and plastic red), lit by two point lights where the 
 static white light remains fixed above the scene and the red light rotates dynamically about the Y-axis by animating its position in the XZ-plane 
 using cosine and sine over time. A Global UBO was used to store the camera matrices and both light properties, while push constants supplied each
-cube’s model matrix and unique material settings (Ka, Kd, Ks, shininess), allowing the same cube geometry to be drawn three times with visibly 
+cube's model matrix and unique material settings (Ka, Kd, Ks, shininess), allowing the same cube geometry to be drawn three times with visibly 
 distinct shading. The fragment shader performs Phong lighting using the two lights, producing ambient, diffuse, and specular contributions per 
-fragment. Small emissive spheres were rendered at each light position as visual indicators (“pictures”) of the light sources so their placement and 
+fragment. Small emissive spheres were rendered at each light position as visual indicators (pictures) of the light sources so their placement and 
 motion are clearly visible. Normals were transformed into world space to ensure accurate lighting calculations, and overall this setup fully meets 
 the assignment requirements for multiple materials, two lights, and an animated red light rotating about the Y-axis.
 
@@ -520,7 +520,7 @@ struct PushConstants {
     glm::mat4 model;
     glm::vec4 Ka; // ambient
     glm::vec4 Kd; // diffuse
-    glm::vec4 Ks; // specular (w = shininess; if 0 => used as “icon mode” in shader)
+    glm::vec4 Ks; // specular 
 };
 ```
 ```c++
@@ -557,7 +557,6 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     // Upload
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 
-    // If you render light icons later, cache the positions used while recording:
     lastUBO = ubo;
 }
 ```
@@ -565,7 +564,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
 #version 460
 
 layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inColor;   // unused here
+layout(location = 1) in vec3 inColor;   
 layout(location = 2) in vec3 inNormal;
 
 layout(binding = 0) uniform GlobalUBO {
@@ -622,7 +621,7 @@ layout(push_constant) uniform Push {
     mat4 model;
     vec4 Ka;    // ambient
     vec4 Kd;    // diffuse
-    vec4 Ks;    // specular; Ks.w = shininess (0 => emissive icon)
+    vec4 Ks;    // specular
 } pc;
 
 vec3 phongLight(vec3 N, vec3 V, vec3 P, vec3 Lpos, vec3 Lcol,
@@ -642,7 +641,6 @@ vec3 phongLight(vec3 N, vec3 V, vec3 P, vec3 Lpos, vec3 Lcol,
 }
 
 void main() {
-    // Emissive icon mode: if Ks.w == 0, just show Ka/Kd as a tint with strong emission.
     if (pc.Ks.w == 0.0) {
         vec3 emissive = mix(pc.Ka.rgb, pc.Kd.rgb, 0.5);
         outColor = vec4(emissive, 1.0);
@@ -667,6 +665,7 @@ void main() {
 ```
 
 **Output:**
+
 ![](Images/ex6_1.png)
 ![](Images/ex6_2.png)
 ![](Images/ex6_3.png)
