@@ -107,6 +107,7 @@
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLM\include;..\GLFW\lib-vc2022;$(ProjectDir)Week_3;C:\Users\984381\source\repos\ChubieMirembe\RTG\packages\Assimp_native_4.1.4.1.0\build\native\include;C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\STB</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableModules>true</EnableModules>
+      <BrowseInformation>true</BrowseInformation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -116,6 +117,9 @@
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
       <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
+    <Bscmake>
+      <PreserveSbr>true</PreserveSbr>
+    </Bscmake>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
