@@ -429,6 +429,7 @@ make the solution more flexible and reusable across different models.
 ### Exercise 7. TEXTURE FILTERING TECHNIQUES.
 
 **Solution:**
+
 In this exercise I scaled the cube geometry along the viewing direction to create the visual effect of a long flat road extending 
 into the distance. This transformation gave the scene depth and helped to show how different texture filtering techniques behave 
 under strong perspective distortion. I then implemented and compared four filtering modes which were nearest neighbour, bilinear, 
@@ -476,15 +477,23 @@ info.maxAnisotropy = props.limits.maxSamplerAnisotropy;
 
 **Output:**
 - Nearest Neighbor Filtering:
+
 ![](Images/ex7_nearest.png)
+
 - Bilinear Filtering:
+
 ![](Images/ex7_bilinear.png)
+
 - Bicubic Filtering:
+
 ![](Images/ex7_bicubic.png)
+
 - Anisotropic Filtering:
+
 ![](Images/ex7_anisotropic.png)
 
 **Reflection:**
+
 Through this exercise I learned how texture filtering choices directly affect perceived image quality in real time rendering.
 I observed that nearest neighbour filtering is fast but causes visible aliasing, while bilinear and trilinear filtering produce 
 smoother results by averaging samples. The bicubic approximation showed how Vulkan trilinear filtering can be used in place
