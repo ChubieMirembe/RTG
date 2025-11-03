@@ -367,8 +367,8 @@ ubo.lightPos = glm::vec3(R * cos(omega * t), 0.5f, R * sin(omega * t));
 
 **Output:**
 
-![](Week_6/Images/ex5_1.png)
-![](Week_6/Images/ex5_2.png)]
+![](Images/ex5_1.png)
+![](Images/ex5_2.png)]
 
 **Reflection:**
 Through this task, I deepened my understanding of how Vulkan’s per-fragment lighting pipeline integrates texture sampling, uniform 
@@ -416,7 +416,7 @@ info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 ```
 **Output:**
-![](Week_6/Images/ex6.png)
+![](Images/ex6.png)
 
 **Reflection:**
 Through this exercise, I learned how texture coordinates directly influence how textures are mapped and repeated on 3D surfaces.
@@ -476,13 +476,13 @@ info.maxAnisotropy = props.limits.maxSamplerAnisotropy;
 
 **Output:**
 - Nearest Neighbor Filtering:
-![](Week_6/Images/ex7_nearest.png)
+![](Images/ex7_nearest.png)
 - Bilinear Filtering:
-![](Week_6/Images/ex7_bilinear.png)
+![](Images/ex7_bilinear.png)
 - Bicubic Filtering:
-![](Week_6/Images/ex7_bicubic.png)
+![](Images/ex7_bicubic.png)
 - Anisotropic Filtering:
-![](Week_6/Images/ex7_anisotropic.png)
+![](Images/ex7_anisotropic.png)
 
 **Reflection:**
 Through this exercise I learned how texture filtering choices directly affect perceived image quality in real time rendering.
