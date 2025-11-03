@@ -37,7 +37,7 @@ void main() {
     vWorldNormal = normalize(N * inNormal);
 
     vColor = inColor;
-    vUV = inUV;
+    vUV = inUV; //* vec2(3.0, 3.0);
 
     gl_Position = ubo.proj * ubo.view * worldPos;
 }

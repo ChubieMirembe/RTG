@@ -429,12 +429,69 @@ make the solution more flexible and reusable across different models.
 ### Exercise 7. TEXTURE FILTERING TECHNIQUES.
 
 **Solution:**
+In this exercise I scaled the cube geometry along the viewing direction to create the visual effect of a long flat road extending 
+into the distance. This transformation gave the scene depth and helped to show how different texture filtering techniques behave 
+under strong perspective distortion. I then implemented and compared four filtering modes which were nearest neighbour, bilinear, 
+bicubic which was approximated using trilinear filtering in Vulkan, and anisotropic filtering. Nearest neighbour sampling produced
+blocky textures, while bilinear filtering softened the transitions between texels but introduced a small amount of blurring. 
+Bicubic filtering was approximated by enabling both linear texture sampling and linear interpolation between mip levels, since 
+Vulkan does not include a true bicubic option. Anisotropic filtering provided the highest visual quality, keeping the distant
+sections of the road clear and reducing aliasing at oblique viewing angles.
+
+```c++
+VkSamplerCreateInfo info{};
+```
+- Nearest Neighbor Filtering:
+```c++
+info.magFilter       = VK_FILTER_NEAREST;
+info.minFilter       = VK_FILTER_NEAREST;
+info.mipmapMode      = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+info.anisotropyEnable = VK_FALSE;
+```
+
+- Bilinear Filtering:
+```c++
+info.magFilter       = VK_FILTER_LINEAR;
+info.minFilter       = VK_FILTER_LINEAR;
+info.mipmapMode      = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+info.anisotropyEnable = VK_FALSE;
+```
+
+- Bicubic Filtering:
+```c++
+info.magFilter       = VK_FILTER_LINEAR;
+info.minFilter       = VK_FILTER_LINEAR;
+info.mipmapMode      = VK_SAMPLER_MIPMAP_MODE_LINEAR;   // trilinear
+info.anisotropyEnable = VK_FALSE;
+```
+
+- Anisotropic Filtering:
+```c++
+info.magFilter = VK_FILTER_LINEAR;
+info.minFilter = VK_FILTER_LINEAR;
+info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+info.anisotropyEnable = VK_TRUE;
+info.maxAnisotropy = props.limits.maxSamplerAnisotropy;
+```
 
 **Output:**
-
-
+- Nearest Neighbor Filtering:
+![](Week_6/Images/ex7_nearest.png)
+- Bilinear Filtering:
+![](Week_6/Images/ex7_bilinear.png)
+- Bicubic Filtering:
+![](Week_6/Images/ex7_bicubic.png)
+- Anisotropic Filtering:
+![](Week_6/Images/ex7_anisotropic.png)
 
 **Reflection:**
+Through this exercise I learned how texture filtering choices directly affect perceived image quality in real time rendering.
+I observed that nearest neighbour filtering is fast but causes visible aliasing, while bilinear and trilinear filtering produce 
+smoother results by averaging samples. The bicubic approximation showed how Vulkan trilinear filtering can be used in place
+of true bicubic filtering when it is not supported. Anisotropic filtering was the most effective technique for keeping detail 
+sharp on surfaces viewed at shallow angles such as the stretched road. Overall I gained a deeper understanding of how texture
+sampling methods reduce blurring and aliasing and how careful filtering selection can significantly improve visual realism 
+without changing the geometry.
 
 ### EXERCISE 8. MULTIPLE TEXTURING
 
