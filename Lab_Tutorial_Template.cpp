@@ -140,13 +140,13 @@ std::vector<Vertex> cubeVertices = {
     {{ 0.5f, 0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,0})},
     {{ 0.5f,-0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,1})},
 
-    // Top (+Y), 5×5 coins
-    {{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1})},
-    {{ 0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,1})},
-    {{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0})},
-    {{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0})},
-    {{-0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,0})},
-    {{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1})},
+    //// Top (+Y), 5×5 coins
+    //{{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1})},
+    //{{ 0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,1})},
+    //{{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0})},
+    //{{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0})},
+    //{{-0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,0})},
+    //{{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1})},
 
     // Bottom (−Y), 6×6 coins
     {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1})},
@@ -158,84 +158,82 @@ std::vector<Vertex> cubeVertices = {
 };
 
 // Sphere geometry (non-indexed) --------------------------------------------
-static std::vector<Vertex> sphereVertices;
+//static std::vector<Vertex> sphereVertices;
 
-static void buildUvSphere(int stacks, int slices) {
-    sphereVertices.clear();
-    const float radius = 0.05f; // small gizmo
-    for (int i = 0; i < stacks; ++i) {
-        float v0 = float(i) / stacks;
-        float v1 = float(i + 1) / stacks;
-        float phi0 = v0 * glm::pi<float>();
-        float phi1 = v1 * glm::pi<float>();
-
-        for (int j = 0; j < slices; ++j) {
-            float u0 = float(j) / slices;
-            float u1 = float(j + 1) / slices;
-            float theta0 = u0 * glm::two_pi<float>();
-            float theta1 = u1 * glm::two_pi<float>();
-
-            auto p = [&](float phi, float theta) {
-                glm::vec3 n{
-                    std::sin(phi) * std::cos(theta),
-                    std::cos(phi),
-                    std::sin(phi) * std::sin(theta)
-                };
-                glm::vec3 pos = radius * n;
-                glm::vec2 uv{ u0, v0 }; // will set per-vertex below
-                return std::make_pair(pos, n);
-                };
-
-            // 4 points of the quad (two triangles)
-            glm::vec3 p00 = (glm::vec3{
-                std::sin(phi0) * std::cos(theta0),
-                std::cos(phi0),
-                std::sin(phi0) * std::sin(theta0) }) * radius;
-            glm::vec3 n00 = glm::normalize(p00 / radius);
-            glm::vec2 t00{ u0, v0 };
-
-            glm::vec3 p10 = (glm::vec3{
-                std::sin(phi0) * std::cos(theta1),
-                std::cos(phi0),
-                std::sin(phi0) * std::sin(theta1) }) * radius;
-            glm::vec3 n10 = glm::normalize(p10 / radius);
-            glm::vec2 t10{ u1, v0 };
-
-            glm::vec3 p01 = (glm::vec3{
-                std::sin(phi1) * std::cos(theta0),
-                std::cos(phi1),
-                std::sin(phi1) * std::sin(theta0) }) * radius;
-            glm::vec3 n01 = glm::normalize(p01 / radius);
-            glm::vec2 t01{ u0, v1 };
-
-            glm::vec3 p11 = (glm::vec3{
-                std::sin(phi1) * std::cos(theta1),
-                std::cos(phi1),
-                std::sin(phi1) * std::sin(theta1) }) * radius;
-            glm::vec3 n11 = glm::normalize(p11 / radius);
-            glm::vec2 t11{ u1, v1 };
-
-            auto red = glm::vec3(1.0f, 0.2f, 0.2f);
-
-            // tri 1
-            sphereVertices.push_back({ p00, red, n00, t00 });
-            sphereVertices.push_back({ p10, red, n10, t10 });
-            sphereVertices.push_back({ p11, red, n11, t11 });
-            // tri 2
-            sphereVertices.push_back({ p00, red, n00, t00 });
-            sphereVertices.push_back({ p11, red, n11, t11 });
-            sphereVertices.push_back({ p01, red, n01, t01 });
-        }
-    }
-}
+//static void buildUvSphere(int stacks, int slices) {
+//    sphereVertices.clear();
+//    const float radius = 0.05f; // small gizmo
+//    for (int i = 0; i < stacks; ++i) {
+//        float v0 = float(i) / stacks;
+//        float v1 = float(i + 1) / stacks;
+//        float phi0 = v0 * glm::pi<float>();
+//        float phi1 = v1 * glm::pi<float>();
+//
+//        for (int j = 0; j < slices; ++j) {
+//            float u0 = float(j) / slices;
+//            float u1 = float(j + 1) / slices;
+//            float theta0 = u0 * glm::two_pi<float>();
+//            float theta1 = u1 * glm::two_pi<float>();
+//
+//            auto p = [&](float phi, float theta) {
+//                glm::vec3 n{
+//                    std::sin(phi) * std::cos(theta),
+//                    std::cos(phi),
+//                    std::sin(phi) * std::sin(theta)
+//                };
+//                glm::vec3 pos = radius * n;
+//                glm::vec2 uv{ u0, v0 }; // will set per-vertex below
+//                return std::make_pair(pos, n);
+//                };
+//
+//            // 4 points of the quad (two triangles)
+//            glm::vec3 p00 = (glm::vec3{
+//                std::sin(phi0) * std::cos(theta0),
+//                std::cos(phi0),
+//                std::sin(phi0) * std::sin(theta0) }) * radius;
+//            glm::vec3 n00 = glm::normalize(p00 / radius);
+//            glm::vec2 t00{ u0, v0 };
+//
+//            glm::vec3 p10 = (glm::vec3{
+//                std::sin(phi0) * std::cos(theta1),
+//                std::cos(phi0),
+//                std::sin(phi0) * std::sin(theta1) }) * radius;
+//            glm::vec3 n10 = glm::normalize(p10 / radius);
+//            glm::vec2 t10{ u1, v0 };
+//
+//            glm::vec3 p01 = (glm::vec3{
+//                std::sin(phi1) * std::cos(theta0),
+//                std::cos(phi1),
+//                std::sin(phi1) * std::sin(theta0) }) * radius;
+//            glm::vec3 n01 = glm::normalize(p01 / radius);
+//            glm::vec2 t01{ u0, v1 };
+//
+//            glm::vec3 p11 = (glm::vec3{
+//                std::sin(phi1) * std::cos(theta1),
+//                std::cos(phi1),
+//                std::sin(phi1) * std::sin(theta1) }) * radius;
+//            glm::vec3 n11 = glm::normalize(p11 / radius);
+//            glm::vec2 t11{ u1, v1 };
+//
+//            auto red = glm::vec3(1.0f, 0.2f, 0.2f);
+//
+//            // tri 1
+//            sphereVertices.push_back({ p00, red, n00, t00 });
+//            sphereVertices.push_back({ p10, red, n10, t10 });
+//            sphereVertices.push_back({ p11, red, n11, t11 });
+//            // tri 2
+//            sphereVertices.push_back({ p00, red, n00, t00 });
+//            sphereVertices.push_back({ p11, red, n11, t11 });
+//            sphereVertices.push_back({ p01, red, n01, t01 });
+//        }
+//    }
+//}
 
 // --- Forward declarations of Vulkan helpers ---
 VkResult CreateDebugUtilsMessengerEXT(
     VkInstance, const VkDebugUtilsMessengerCreateInfoEXT*,
     const VkAllocationCallbacks*, VkDebugUtilsMessengerEXT*);
-void DestroyDebugUtilsMessengerEXT(
-    VkInstance, VkDebugUtilsMessengerEXT, const VkAllocationCallbacks*);
-
+void DestroyDebugUtilsMessengerEXT(VkInstance, VkDebugUtilsMessengerEXT, const VkAllocationCallbacks*);
 // ---- Debug utils loader helpers (define these in your .cpp) ----
 static VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance,
@@ -849,7 +847,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     VkPipelineRasterizationStateCreateInfo rs{};
     rs.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rs.polygonMode = VK_POLYGON_MODE_FILL;
-    rs.cullMode = VK_CULL_MODE_BACK_BIT;
+    rs.cullMode = VK_CULL_MODE_NONE;
     rs.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rs.lineWidth = 1.0f;
 
@@ -928,7 +926,7 @@ void HelloTriangleApplication::createCommandPool() {
 
 // --- Textures (simple load, no mipmaps) -----------------------------------
 static stbi_uc* loadTextureOrFallback(int* w, int* h, int* ch) {
-    stbi_uc* p = stbi_load("coin.jpg", w, h, ch, STBI_rgb_alpha);
+    stbi_uc* p = stbi_load("rocks.jpg", w, h, ch, STBI_rgb_alpha);
     if (p) return p;
     // 2x2 checker fallback
     *w = 2; *h = 2; *ch = 4;
@@ -998,7 +996,7 @@ void HelloTriangleApplication::createTextureSampler() {
 // load tile (or fallback)
 static stbi_uc* loadTextureOrFallback2(int* w, int* h, int* ch) {
     // try tile file first
-    stbi_uc* p = stbi_load("tile.jpg", w, h, ch, STBI_rgb_alpha);
+    stbi_uc* p = stbi_load("wood.jpg", w, h, ch, STBI_rgb_alpha);
     if (p) return p;
     // fallback: same 2x2 checker
     *w = 2; *h = 2; *ch = 4;
@@ -1244,7 +1242,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     float t = std::chrono::duration<float>(now - t0).count();
 
     UniformBufferObject u{};
-    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),
+    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(120.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
     glm::vec3 camPos = glm::vec3(0.0f, 1.5f, 3.0f);
     u.view = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
