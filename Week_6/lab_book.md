@@ -505,12 +505,27 @@ without changing the geometry.
 ### EXERCISE 8. MULTIPLE TEXTURING
 
 **Solution:**
+To complete this exercise I extended the existing texture system by creating one additional texture rather 
+than redesigning the whole pipeline. The original texture setup was kept for the coin image, and a new texture
+was added for the tiled surface. This required defining one more texture image, view, and sampler in the C++ 
+code, and updating the descriptor set layout to include the extra binding. The fragment shader was then
+modified to read from both textures and combine them, using the coin texture as an overlay on top of the tile 
+base. Minor adjustments were also made to the shader to simplify the lighting so that the cube appears evenly
+lit, allowing the two textures to blend clearly. This addition of a second texture and the shader update
+achieved the multiple-texturing outcome required for the exercise.
 
 **Output:**
-
-
+![](Images/ex8.png)
 
 **Reflection:**
+Through this exercise I learned how to extend a Vulkan texture pipeline to support multiple textures and how 
+descriptor bindings directly connect data on the CPU side to shader inputs on the GPU. Adding a second texture 
+showed the importance of managing image views, samplers, and descriptor updates in parallel to ensure both
+textures are accessible within the same fragment shader. Modifying the shader to blend two textures deepened 
+my understanding of how texture sampling and layering work together to produce composite materials. It also 
+reinforced how even small lighting adjustments can affect how clearly textures are perceived. Overall, this 
+task helped strengthen my confidence in handling descriptor layouts, texture management, and shader 
+coordination to achieve a richer and more controlled rendering result.
 
 ### EXERCISE 9.AN OPEN BOX 
 
