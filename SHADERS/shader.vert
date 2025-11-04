@@ -8,14 +8,6 @@ layout(set = 0, binding = 0) uniform UBO {
     vec3 eyePos;
 } ubo;
 
-layout(push_constant) uniform Push {
-    mat4 modelOverride;
-    uint useOverride;
-    uint unlit;
-    uint _pad0;
-    uint _pad1;
-} pc;
-
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inColor;
 layout(location = 2) in vec3 inNormal;
@@ -27,17 +19,14 @@ layout(location = 2) out vec3 vColor;
 layout(location = 3) out vec2 vUV;
 
 void main() {
-    mat4 M = (pc.useOverride != 0u) ? pc.modelOverride : ubo.model;
-
-    vec4 worldPos = M * vec4(inPos, 1.0);
+    vec4 worldPos = ubo.model * vec4(inPos, 1.0);
     vWorldPos = worldPos.xyz;
 
-    // If gizmo is unlit, normal won't be used; still compute valid value
-    mat3 N = mat3(transpose(inverse(M)));
+    mat3 N = mat3(transpose(inverse(ubo.model)));
     vWorldNormal = normalize(N * inNormal);
 
     vColor = inColor;
-    vUV = inUV; //* vec2(3.0, 3.0);
+    vUV = inUV * vec2(2.0,2.0);  // pass to fragment shader
 
     gl_Position = ubo.proj * ubo.view * worldPos;
 }

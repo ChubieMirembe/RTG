@@ -8,15 +8,9 @@ layout(set = 0, binding = 0) uniform UBO {
     vec3 eyePos;
 } ubo;
 
-layout(push_constant) uniform Push {
-    mat4 modelOverride;
-    uint useOverride;
-    uint unlit;
-    uint _pad0;
-    uint _pad1;
-} pc;
-
-layout(binding = 1) uniform sampler2D texSampler;
+// Two textures: coin (binding 1) and tile (binding 2)
+layout(set = 0, binding = 1) uniform sampler2D texSampler1;
+layout(set = 0, binding = 2) uniform sampler2D texSampler2;
 
 layout(location = 0) in vec3 vWorldPos;
 layout(location = 1) in vec3 vWorldNormal;
@@ -26,25 +20,22 @@ layout(location = 3) in vec2 vUV;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    if (pc.unlit != 0u) {
-        // emissive white for light gizmo
-        outColor = vec4(1.0, 1.0, 1.0, 1.0);
-        return;
-    }
+    // Sample both textures
+    vec3 color1 = texture(texSampler1, vUV).rgb;          // coin texture
+    vec3 color2 = texture(texSampler2, vUV * 2.0).rgb;    // tile texture (scaled UVs)
 
+    // Simple diffuse lighting
     vec3 N = normalize(vWorldNormal);
     vec3 L = normalize(ubo.lightPos - vWorldPos);
-    vec3 V = normalize(ubo.eyePos   - vWorldPos);
-    vec3 R = reflect(-L, N);
+    float NdotL = max(dot(N, L), 0.0);
 
-    vec3 tex = texture(texSampler, vUV).rgb;
+    // Blend both textures evenly (50% each)
+    vec3 mixedColor = mix(color1, color2, 0.3);
 
-    float diff = max(dot(N, L), 0.0);
-    float spec = pow(max(dot(R, V), 0.0), 32.0);
+    // Ambient and diffuse contributions
+    vec3 ambient = mixedColor * 0.15;
+    vec3 diffuse = mixedColor * NdotL;
 
-    vec3 ambient  = 0.15 * tex;
-    vec3 diffuse  = 0.85 * diff * tex;
-    vec3 specular = 0.15 * spec * vec3(1.0);
-
-    outColor = vec4(ambient + diffuse + specular, 1.0);
+    vec3 finalColor = ambient + diffuse;
+    outColor = vec4(finalColor, 1.0);
 }

@@ -105,7 +105,7 @@ struct PushConstants {
     uint32_t  _pad1;         // 4   -> total 80 bytes
 };
 
-auto faceUV = [&](float S, glm::vec2 uv) { return uv * S; };
+auto faceUV = [&](float S, glm::vec2 uv) { return uv; };
 
 std::vector<Vertex> cubeVertices = {
     // Front (+Z), 1×1 coins
@@ -301,12 +301,15 @@ private:
     VkImageView textureImageView = VK_NULL_HANDLE;
     VkSampler textureSampler = VK_NULL_HANDLE;
 
+    VkImage textureImage2;
+    VkDeviceMemory textureImageMemory2;
+    VkImageView textureImageView2;
+    VkSampler textureSampler2;
+
+
     // Buffers
     VkBuffer cubeVertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory cubeVertexBufferMemory = VK_NULL_HANDLE;
-
-    VkBuffer sphereVertexBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory sphereVertexBufferMemory = VK_NULL_HANDLE;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -343,6 +346,11 @@ private:
     void createTextureImage();
     void createTextureImageView();
     void createTextureSampler();
+
+    void createTextureImage2();
+    void createTextureImageView2();
+    void createTextureSampler2();
+
 
     void createVertexBuffers();
     void createUniformBuffers();
@@ -429,10 +437,12 @@ void HelloTriangleApplication::initVulkan() {
     STEP("createTextureImageView"); createTextureImageView();
     STEP("createTextureSampler");  createTextureSampler();
 
+    STEP("createTextureImage2");    createTextureImage2();
+    STEP("createTextureImageView2"); createTextureImageView2();
+    STEP("createTextureSampler2");  createTextureSampler2();
+
+
     STEP("build geometry");
-    // main cube
-    // light gizmo sphere
-    buildUvSphere(16, 24);
 
     STEP("createVertexBuffers");
     createVertexBuffers();
@@ -463,11 +473,12 @@ void HelloTriangleApplication::cleanup() {
     vkDestroyImageView(device, textureImageView, nullptr);
     vkDestroyImage(device, textureImage, nullptr);
     vkFreeMemory(device, textureImageMemory, nullptr);
+    
+    vkDestroySampler(device, textureSampler2, nullptr);
+    vkDestroyImageView(device, textureImageView2, nullptr);
+    vkDestroyImage(device, textureImage2, nullptr);
+    vkFreeMemory(device, textureImageMemory2, nullptr);
 
-    if (sphereVertexBuffer) {
-        vkDestroyBuffer(device, sphereVertexBuffer, nullptr);
-        vkFreeMemory(device, sphereVertexBufferMemory, nullptr);
-    }
     if (cubeVertexBuffer) {
         vkDestroyBuffer(device, cubeVertexBuffer, nullptr);
         vkFreeMemory(device, cubeVertexBufferMemory, nullptr);
@@ -762,29 +773,39 @@ void HelloTriangleApplication::createImageViews() {
 }
 
 void HelloTriangleApplication::createDescriptorSetLayout() {
-    // UBO at set=0,binding=0 (VS+FS)
+    // binding 0 = UBO
     VkDescriptorSetLayoutBinding ubo{};
     ubo.binding = 0;
     ubo.descriptorCount = 1;
     ubo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    // Sampler at binding=1 — fragment only
-    VkDescriptorSetLayoutBinding tex{};
-    tex.binding = 1;
-    tex.descriptorCount = 1;
-    tex.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    tex.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // binding 1 = first texture (coin)
+    VkDescriptorSetLayoutBinding tex1{};
+    tex1.binding = 1;
+    tex1.descriptorCount = 1;
+    tex1.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    tex1.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings{ ubo, tex };
+    // binding 2 = second texture (tile)
+    VkDescriptorSetLayoutBinding tex2{};
+    tex2.binding = 2;
+    tex2.descriptorCount = 1;
+    tex2.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    tex2.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings{ ubo, tex1, tex2 };
+
     VkDescriptorSetLayoutCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     info.bindingCount = static_cast<uint32_t>(bindings.size());
     info.pBindings = bindings.data();
 
-    if (vkCreateDescriptorSetLayout(device, &info, nullptr, &descriptorSetLayout) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create descriptor set layout!");
+    if (vkCreateDescriptorSetLayout(device, &info, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
 }
+
 
 void HelloTriangleApplication::createGraphicsPipeline() {
     auto vertShaderCode = readFile("shaders/vert.spv");
@@ -974,6 +995,88 @@ void HelloTriangleApplication::createTextureSampler() {
         throw std::runtime_error("Failed to create sampler");
 }
 
+// load tile (or fallback)
+static stbi_uc* loadTextureOrFallback2(int* w, int* h, int* ch) {
+    // try tile file first
+    stbi_uc* p = stbi_load("tile.jpg", w, h, ch, STBI_rgb_alpha);
+    if (p) return p;
+    // fallback: same 2x2 checker
+    *w = 2; *h = 2; *ch = 4;
+    stbi_uc* c = (stbi_uc*)malloc(4 * 4);
+    unsigned char A[4] = { 180,180,180,255 };
+    unsigned char B[4] = { 80, 80, 80,255 };
+    memcpy(c + 0, A, 4); memcpy(c + 4, B, 4);
+    memcpy(c + 8, B, 4); memcpy(c + 12, A, 4);
+    return c;
+}
+
+void HelloTriangleApplication::createTextureImage2() {
+    int w, h, ch;
+    stbi_uc* pixels = loadTextureOrFallback2(&w, &h, &ch);
+    VkDeviceSize imageSize = (VkDeviceSize)w * h * 4;
+
+    VkBuffer staging; VkDeviceMemory stagingMem;
+    createBuffer(imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        staging, stagingMem);
+
+    void* data;
+    vkMapMemory(device, stagingMem, 0, imageSize, 0, &data);
+    memcpy(data, pixels, (size_t)imageSize);
+    vkUnmapMemory(device, stagingMem);
+    stbi_image_free(pixels);
+
+    createImage((uint32_t)w, (uint32_t)h, VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        textureImage2, textureImageMemory2);
+
+    transitionImageLayout(textureImage2, VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+    copyBufferToImage(staging, textureImage2, (uint32_t)w, (uint32_t)h);
+    transitionImageLayout(textureImage2, VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+
+    vkDestroyBuffer(device, staging, nullptr);
+    vkFreeMemory(device, stagingMem, nullptr);
+}
+
+void HelloTriangleApplication::createTextureImageView2() {
+    textureImageView2 = createImageView(
+        textureImage2,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_ASPECT_COLOR_BIT
+    );
+}
+
+void HelloTriangleApplication::createTextureSampler2() {
+    VkPhysicalDeviceProperties props{};
+    vkGetPhysicalDeviceProperties(physicalDevice, &props);
+
+    VkSamplerCreateInfo info{ };
+    info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    info.magFilter = VK_FILTER_LINEAR;
+    info.minFilter = VK_FILTER_LINEAR;
+    info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.anisotropyEnable = VK_TRUE;
+    info.maxAnisotropy = props.limits.maxSamplerAnisotropy;
+    info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    info.unnormalizedCoordinates = VK_FALSE;
+    info.compareEnable = VK_FALSE;
+    info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+    if (vkCreateSampler(device, &info, nullptr, &textureSampler2) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create tile sampler");
+    }
+}
+
+
 // --- Vertex buffers for cube and sphere ------------------------------------
 void HelloTriangleApplication::createVertexBuffers() {
     auto makeVB = [&](const std::vector<Vertex>& verts, VkBuffer& buf, VkDeviceMemory& mem) {
@@ -994,7 +1097,6 @@ void HelloTriangleApplication::createVertexBuffers() {
         };
 
     makeVB(cubeVertices, cubeVertexBuffer, cubeVertexBufferMemory);
-    makeVB(sphereVertices, sphereVertexBuffer, sphereVertexBufferMemory);
 }
 
 // --- UBO / descriptors / command buffers / sync ----------------------------
@@ -1010,55 +1112,102 @@ void HelloTriangleApplication::createUniformBuffers() {
         vkMapMemory(device, uniformBuffersMemory[i], 0, bs, 0, &uniformBuffersMapped[i]);
     }
 }
+
 void HelloTriangleApplication::createDescriptorPool() {
-    std::array<VkDescriptorPoolSize, 2> ps{};
-    ps[0] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         MAX_FRAMES_IN_FLIGHT };
-    ps[1] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_FRAMES_IN_FLIGHT };
-    VkDescriptorPoolCreateInfo ci{};
-    ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    ci.poolSizeCount = (uint32_t)ps.size();
-    ci.pPoolSizes = ps.data();
-    ci.maxSets = MAX_FRAMES_IN_FLIGHT;
-    if (vkCreateDescriptorPool(device, &ci, nullptr, &descriptorPool) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create descriptor pool");
-}
-void HelloTriangleApplication::createDescriptorSets() {
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
-    VkDescriptorSetAllocateInfo ai{};
-    ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    ai.descriptorPool = descriptorPool;
-    ai.descriptorSetCount = (uint32_t)layouts.size();
-    ai.pSetLayouts = layouts.data();
+    std::array<VkDescriptorPoolSize, 3> poolSizes{};
 
-    descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(device, &ai, descriptorSets.data()) != VK_SUCCESS)
-        throw std::runtime_error("Failed to allocate descriptor sets");
+    // UBOs
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        VkDescriptorBufferInfo bi{ uniformBuffers[i], 0, sizeof(UniformBufferObject) };
-        VkDescriptorImageInfo ii{};
-        ii.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        ii.imageView = textureImageView;
-        ii.sampler = textureSampler;
+    // first sampler
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
-        std::array<VkWriteDescriptorSet, 2> w{};
-        w[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w[0].dstSet = descriptorSets[i];
-        w[0].dstBinding = 0;
-        w[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        w[0].descriptorCount = 1;
-        w[0].pBufferInfo = &bi;
+    // second sampler
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
-        w[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w[1].dstSet = descriptorSets[i];
-        w[1].dstBinding = 1;
-        w[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        w[1].descriptorCount = 1;
-        w[1].pImageInfo = &ii;
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
 
-        vkUpdateDescriptorSets(device, (uint32_t)w.size(), w.data(), 0, nullptr);
+    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool!");
     }
 }
+
+
+void HelloTriangleApplication::createDescriptorSets() {
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = (uint32_t)MAX_FRAMES_IN_FLIGHT;
+    allocInfo.pSetLayouts = layouts.data();
+
+    descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor sets");
+    }
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBufferObject);
+
+        // --- first texture (coin.jpg) ---
+        VkDescriptorImageInfo imageInfo1{};
+        imageInfo1.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo1.imageView = textureImageView;
+        imageInfo1.sampler = textureSampler;
+
+        // --- second texture (tile.jpg) ---
+        VkDescriptorImageInfo imageInfo2{};
+        imageInfo2.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo2.imageView = textureImageView2;
+        imageInfo2.sampler = textureSampler2;
+
+        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+
+        // binding 0 = UBO
+        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[0].dstSet = descriptorSets[i];
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[0].descriptorCount = 1;
+        descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+        // binding 1 = coin texture
+        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[1].dstSet = descriptorSets[i];
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].pImageInfo = &imageInfo1;
+
+        // binding 2 = tile texture (new)
+        descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[2].dstSet = descriptorSets[i];
+        descriptorWrites[2].dstBinding = 2;
+        descriptorWrites[2].dstArrayElement = 0;
+        descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[2].descriptorCount = 1;
+        descriptorWrites[2].pImageInfo = &imageInfo2;
+
+        vkUpdateDescriptorSets(device,
+            static_cast<uint32_t>(descriptorWrites.size()),
+            descriptorWrites.data(),
+            0, nullptr);
+    }
+}
+
 
 void HelloTriangleApplication::createCommandBuffers() {
     commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1095,16 +1244,16 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     float t = std::chrono::duration<float>(now - t0).count();
 
     UniformBufferObject u{};
-    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f),
+    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::vec3 camPos = glm::vec3(0.0f, 2.0f, 3.0f);
+    glm::vec3 camPos = glm::vec3(0.0f, 1.5f, 3.0f);
     u.view = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     u.proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     u.proj[1][1] *= -1;
 
     float R = 1.0f, omega = 1.5f;
-    u.lightPos = glm::vec3(R * std::cos(omega * t), 0.8f, R * std::sin(omega * t));
+    u.lightPos = glm::vec3(0.0f, 3.0f, 3.0f);   // fixed light in front/right/up
     u.eyePos = camPos;
 
     memcpy(uniformBuffersMapped[frame], &u, sizeof(u));
@@ -1169,32 +1318,6 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
         VkDeviceSize offs[] = { 0 };
         vkCmdBindVertexBuffers(cb, 0, 1, vbs, offs);
         vkCmdDraw(cb, (uint32_t)cubeVertices.size(), 1, 0, 0);
-    }
-
-    // Draw the light sphere (UNLIT emissive), override model = translate(lightPos)
-    {
-        // Read current lightPos from UBO on CPU side? We computed it when updating UBO,
-        // so recompute here consistently to build modelOverride:
-        static auto t0 = std::chrono::high_resolution_clock::now();
-        auto now = std::chrono::high_resolution_clock::now();
-        float t = std::chrono::duration<float>(now - t0).count();
-        float R = 1.0f, omega = 1.5f;
-        glm::vec3 lp = glm::vec3(R * std::cos(omega * t), 0.8f, R * std::sin(omega * t));
-
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), lp); // sphere already small radius
-
-        PushConstants pc{};
-        pc.modelOverride = model;
-        pc.useOverride = 1u;
-        pc.unlit = 1u;
-        vkCmdPushConstants(cb, pipelineLayout,
-            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-            0, (uint32_t)sizeof(PushConstants), &pc);
-
-        VkBuffer vbs[] = { sphereVertexBuffer };
-        VkDeviceSize offs[] = { 0 };
-        vkCmdBindVertexBuffers(cb, 0, 1, vbs, offs);
-        vkCmdDraw(cb, (uint32_t)sphereVertices.size(), 1, 0, 0);
     }
 
     vkCmdEndRendering(cb);
