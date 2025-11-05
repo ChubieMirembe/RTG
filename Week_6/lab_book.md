@@ -505,19 +505,79 @@ without changing the geometry.
 ### EXERCISE 8. MULTIPLE TEXTURING
 
 **Solution:**
+To complete this exercise I extended the existing texture system by creating one additional texture rather 
+than redesigning the whole pipeline. The original texture setup was kept for the coin image, and a new texture
+was added for the tiled surface. This required defining one more texture image, view, and sampler in the C++ 
+code, and updating the descriptor set layout to include the extra binding. The fragment shader was then
+modified to read from both textures and combine them, using the coin texture as an overlay on top of the tile 
+base. Minor adjustments were also made to the shader to simplify the lighting so that the cube appears evenly
+lit, allowing the two textures to blend clearly. This addition of a second texture and the shader update
+achieved the multiple-texturing outcome required for the exercise.
 
 **Output:**
-
-
+![](Images/ex8.png)
 
 **Reflection:**
+Through this exercise I learned how to extend a Vulkan texture pipeline to support multiple textures and how 
+descriptor bindings directly connect data on the CPU side to shader inputs on the GPU. Adding a second texture 
+showed the importance of managing image views, samplers, and descriptor updates in parallel to ensure both
+textures are accessible within the same fragment shader. Modifying the shader to blend two textures deepened 
+my understanding of how texture sampling and layering work together to produce composite materials. It also 
+reinforced how even small lighting adjustments can affect how clearly textures are perceived. Overall, this 
+task helped strengthen my confidence in handling descriptor layouts, texture management, and shader 
+coordination to achieve a richer and more controlled rendering result.
 
 ### EXERCISE 9.AN OPEN BOX 
 
 **Solution:**
+To achieve the cube with rock on the outside and wood on the inside while leaving the top open, I configured the Vulkan 
+pipeline to use two textures and handle both surfaces within a single mesh. I loaded two images, rock.jpg and wood.jpg,
+created their image views and samplers, and bound them to descriptor set bindings 1 and 2 alongside the uniform buffer 
+at binding 0. In the pipeline settings I disabled face culling so that both the front and back faces of the cube could 
+be rendered. The cube geometry was defined without its top face to allow viewing inside. In the vertex shader I output 
+the world position, normal, and UV coordinates, scaling the UVs slightly to extend the rock texture across the outer 
+faces. In the fragment shader I sampled both textures and selected which to display based on surface orientation. Front
+facing surfaces sampled from the rock texture while back facing surfaces sampled from the wood texture. I then applied 
+simple diffuse lighting using the light and camera positions from the uniform buffer to produce realistic shading. The
+result was an open cube where the exterior appears rocky, the interior wooden, and the lighting consistent across both
+materials.
+
+- Descriptor Set Layout with Two Texture Bindings:
+
+```c++
+void HelloTriangleApplication::createDescriptorSetLayout() {
+    VkDescriptorSetLayoutBinding ubo{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT};
+
+    VkDescriptorSetLayoutBinding tex1{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+        VK_SHADER_STAGE_FRAGMENT_BIT};
+
+    VkDescriptorSetLayoutBinding tex2{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+        VK_SHADER_STAGE_FRAGMENT_BIT};
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings{ubo, tex1, tex2};
+
+    VkDescriptorSetLayoutCreateInfo info{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    info.bindingCount = static_cast<uint32_t>(bindings.size());
+    info.pBindings = bindings.data();
+    vkCreateDescriptorSetLayout(device, &info, nullptr, &descriptorSetLayout);
+}
+
+```
+
+- Fragment Shader Sampling Both Textures Based on Face Orientation:
+
+```c++
+vec3 color1 = texture(texSampler1, vUV).rgb;  // rock
+vec3 color2 = texture(texSampler2, vUV).rgb;  // wood
+
+vec3 normalViewSpace = normalize(mat3(transpose(inverse(ubo.model))) * vWorldNormal);
+bool isRearFace = isRearFaceByNormal(normalViewSpace);
+
+vec3 finalColor = isRearFace ? color2 : color1;
+```
 
 **Output:**
-
-
+![](Images/ex9.png)
 
 **Reflection:**
