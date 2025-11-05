@@ -188,6 +188,15 @@ between vertex and fragment shaders.
 
 **Solution:**
 
+
+```c++
+```
+
+```c++
+```
+
+```c++
+```
 **Output:**
 
 **Reflection:**
@@ -198,6 +207,15 @@ between vertex and fragment shaders.
 
 **Solution:**
 
+
+```c++
+```
+
+```c++
+```
+
+```c++
+```
 **Output:**
 
 **Reflection:**
@@ -207,6 +225,16 @@ between vertex and fragment shaders.
 ### EXERCISE 5: RAY MARCHING -BASED PARALLAX MAPPING (OPTIONAL)
 
 **Solution:**
+
+
+```c++
+```
+
+```c++
+```
+
+```c++
+```
 
 **Output:**
 
