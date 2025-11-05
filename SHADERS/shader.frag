@@ -8,61 +8,45 @@ layout(set = 0, binding = 0) uniform UBO {
     vec3 eyePos;
 } ubo;
 
-// Two textures: rock (binding 1) and wood (binding 2)
-layout(set = 0, binding = 1) uniform sampler2D texSampler1;  // Rock texture
-layout(set = 0, binding = 2) uniform sampler2D texSampler2;  // Wood texture
+layout(set = 0, binding = 1) uniform sampler2D colSampler;
+layout(set = 0, binding = 2) uniform sampler2D normalSampler;
 
 layout(location = 0) in vec3 vWorldPos;
 layout(location = 1) in vec3 vWorldNormal;
 layout(location = 2) in vec3 vColor;
 layout(location = 3) in vec2 vUV;
 
+layout(location = 4) in vec3 fragLightDir_tangent;
+layout(location = 5) in vec3 fragViewDir_tangent;
+layout(location = 6) in vec3 fragPos_tangent;
+
 layout(location = 0) out vec4 outColor;
 
-bool isRearFaceByNormal(vec3 worldNormal) {
-    vec3 n = normalize(worldNormal);
-    vec3 an = abs(n);
-
-    if (an.x >= an.y && an.x >= an.z) {
-        return (n.x < 0.0);
-    }
-    else if (an.z >= an.x && an.z >= an.y) {
-        return (n.z < 0.0);
-    }
-    return false;
-}
-
 void main() {
-    // Sample both textures
-    vec3 color1 = texture(texSampler1, vUV).rgb;  // Rock texture
-    vec3 color2 = texture(texSampler2, vUV).rgb;  // Wood texture
+    // base colour
+    vec3 albedo = texture(colSampler, vUV).rgb;
 
-    // Transform the normal to view space
-    vec3 normalViewSpace = normalize(mat3(transpose(inverse(ubo.model))) * vWorldNormal);
+    // normal from normal map
+    vec3 N_tangent = texture(normalSampler, vUV).rgb;
+    N_tangent = normalize(N_tangent * 2.0 - 1.0);
 
-    // Check if the fragment is a rear face based on normal direction
-    bool isRearFace = isRearFaceByNormal(normalViewSpace);
+    // exaggerate bump
+    N_tangent.z *= 0.8;  
+    N_tangent = normalize(N_tangent);
 
-    // Select the texture based on the face orientation
-    vec3 finalColor;
-    if (isRearFace) {
-        // Inside faces: Use wood texture
-        finalColor = color2;
-    } else {
-        // Outside faces: Use rock texture
-        finalColor = color1;
-    }
+    // directions in tangent space
+    vec3 L = normalize(fragLightDir_tangent);
+    vec3 V = normalize(fragViewDir_tangent);
+    vec3 H = normalize(L + V);
 
-    // Simple diffuse lighting
-    vec3 N = normalize(vWorldNormal);
-    vec3 L = normalize(ubo.lightPos - vWorldPos);
-    float NdotL = max(dot(N, L), 0.0);
+    float diff = max(dot(N_tangent, L), 0.0);
+    float spec = pow(max(dot(N_tangent, H), 0.0), 32.0);
 
-    // Ambient and diffuse contributions
-    vec3 ambient = finalColor * 0.15;
-    vec3 diffuse = finalColor * NdotL;
+    vec3 ambient  = 0.15 * albedo;
+    vec3 diffuse  = diff * albedo;
+    vec3 specular = spec * vec3(1.0);
 
-    vec3 mixedColor = ambient + diffuse;
-    outColor = vec4(mixedColor, 1.0);
+    vec3 color = ambient + diffuse + specular;
+    outColor = vec4(color, 1.0);
+
 }
-

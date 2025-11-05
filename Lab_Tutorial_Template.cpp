@@ -71,6 +71,8 @@ struct Vertex {
     glm::vec3 color;
     glm::vec3 normal;
     glm::vec2 uv;
+    glm::vec3 tangent;
+    glm::vec3 binormal;
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription b{};
@@ -79,15 +81,21 @@ struct Vertex {
         b.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
         return b;
     }
-    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 4> a{};
+
+    static std::array<VkVertexInputAttributeDescription, 6> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 6> a{};
+
         a[0] = { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos) };
         a[1] = { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color) };
         a[2] = { 2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal) };
-        a[3] = { 3, 0, VK_FORMAT_R32G32_SFLOAT,   offsetof(Vertex, uv) };
+        a[3] = { 3, 0, VK_FORMAT_R32G32_SFLOAT,    offsetof(Vertex, uv) };
+        a[4] = { 4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent) };
+        a[5] = { 5, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, binormal) };
+
         return a;
     }
 };
+
 
 struct UniformBufferObject {
     alignas(16) glm::mat4 model;
@@ -106,56 +114,56 @@ struct PushConstants {
 };
 
 auto faceUV = [&](float S, glm::vec2 uv) { return uv; };
-
 std::vector<Vertex> cubeVertices = {
-    // Front (+Z), 1×1 coins
-    {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1})},
-    {{ 0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,1})},
-    {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0})},
-    {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0})},
-    {{-0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,0})},
-    {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1})},
+    // Front (+Z)
+    {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1}), {1,0,0}, {0,1,0}},
+    {{ 0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,1}), {1,0,0}, {0,1,0}},
+    {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0}), {1,0,0}, {0,1,0}},
+    {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0}), {1,0,0}, {0,1,0}},
+    {{-0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,0}), {1,0,0}, {0,1,0}},
+    {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1}), {1,0,0}, {0,1,0}},
 
-    // Back (−Z), 2×2 coins
-    {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1})},
-    {{-0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,1})},
-    {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0})},
-    {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0})},
-    {{ 0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,0})},
-    {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1})},
+    // Back (−Z)
+    {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1}), {-1,0,0}, {0,1,0}},
+    {{-0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,1}), {-1,0,0}, {0,1,0}},
+    {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0}), {-1,0,0}, {0,1,0}},
+    {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0}), {-1,0,0}, {0,1,0}},
+    {{ 0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,0}), {-1,0,0}, {0,1,0}},
+    {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1}), {-1,0,0}, {0,1,0}},
 
-    // Left (−X), 3×3 coins
-    {{-0.5f,-0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,1})},
-    {{-0.5f,-0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,1})},
-    {{-0.5f, 0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,0})},
-    {{-0.5f, 0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,0})},
-    {{-0.5f, 0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,0})},
-    {{-0.5f,-0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,1})},
+    // Left (−X)
+    {{-0.5f,-0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,1}), {0,0,1}, {0,1,0}},
+    {{-0.5f,-0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,1}), {0,0,1}, {0,1,0}},
+    {{-0.5f, 0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,0}), {0,0,1}, {0,1,0}},
+    {{-0.5f, 0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,0}), {0,0,1}, {0,1,0}},
+    {{-0.5f, 0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,0}), {0,0,1}, {0,1,0}},
+    {{-0.5f,-0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,1}), {0,0,1}, {0,1,0}},
 
-    // Right (+X), 4×4 coins
-    {{ 0.5f,-0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,1})},
-    {{ 0.5f,-0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,1})},
-    {{ 0.5f, 0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,0})},
-    {{ 0.5f, 0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,0})},
-    {{ 0.5f, 0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,0})},
-    {{ 0.5f,-0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,1})},
+    // Right (+X)
+    {{ 0.5f,-0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,1}), {0,0,-1}, {0,1,0}},
+    {{ 0.5f,-0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,1}), {0,0,-1}, {0,1,0}},
+    {{ 0.5f, 0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,0}), {0,0,-1}, {0,1,0}},
+    {{ 0.5f, 0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,0}), {0,0,-1}, {0,1,0}},
+    {{ 0.5f, 0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,0}), {0,0,-1}, {0,1,0}},
+    {{ 0.5f,-0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,1}), {0,0,-1}, {0,1,0}},
 
-    //// Top (+Y), 5×5 coins
-    //{{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1})},
-    //{{ 0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,1})},
-    //{{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0})},
-    //{{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0})},
-    //{{-0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,0})},
-    //{{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1})},
+    // Top (+Y)
+    {{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1}), {1,0,0}, {0,0,-1}},
+    {{ 0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,1}), {1,0,0}, {0,0,-1}},
+    {{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0}), {1,0,0}, {0,0,-1}},
+    {{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0}), {1,0,0}, {0,0,-1}},
+    {{-0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,0}), {1,0,0}, {0,0,-1}},
+    {{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1}), {1,0,0}, {0,0,-1}},
 
-    // Bottom (−Y), 6×6 coins
-    {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1})},
-    {{ 0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,1})},
-    {{ 0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,0})},
-    {{ 0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,0})},
-    {{-0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,0})},
-    {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1})},
+    // Bottom (−Y)
+    {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1}), {1,0,0}, {0,0,1}},
+    {{ 0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,1}), {1,0,0}, {0,0,1}},
+    {{ 0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,0}), {1,0,0}, {0,0,1}},
+    {{ 0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,0}), {1,0,0}, {0,0,1}},
+    {{-0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,0}), {1,0,0}, {0,0,1}},
+    {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1}), {1,0,0}, {0,0,1}},
 };
+
 
 // Sphere geometry (non-indexed) --------------------------------------------
 //static std::vector<Vertex> sphereVertices;
@@ -1002,7 +1010,7 @@ void HelloTriangleApplication::createCommandPool() {
 
 // --- Textures (simple load, no mipmaps) -----------------------------------
 static stbi_uc* loadTextureOrFallback(int* w, int* h, int* ch) {
-    stbi_uc* p = stbi_load("rocks.jpg", w, h, ch, STBI_rgb_alpha);
+    stbi_uc* p = stbi_load("stone.jpg", w, h, ch, STBI_rgb_alpha);
     if (p) return p;
     // 2x2 checker fallback
     *w = 2; *h = 2; *ch = 4;
@@ -1071,18 +1079,19 @@ void HelloTriangleApplication::createTextureSampler() {
 
 // load tile (or fallback)
 static stbi_uc* loadTextureOrFallback2(int* w, int* h, int* ch) {
-    // try tile file first
-    stbi_uc* p = stbi_load("wood.jpg", w, h, ch, STBI_rgb_alpha);
+    stbi_uc* p = stbi_load("rockNormal.bmp", w, h, ch, STBI_rgb_alpha);
     if (p) return p;
-    // fallback: same 2x2 checker
+
     *w = 2; *h = 2; *ch = 4;
     stbi_uc* c = (stbi_uc*)malloc(4 * 4);
-    unsigned char A[4] = { 180,180,180,255 };
-    unsigned char B[4] = { 80, 80, 80,255 };
-    memcpy(c + 0, A, 4); memcpy(c + 4, B, 4);
-    memcpy(c + 8, B, 4); memcpy(c + 12, A, 4);
+    unsigned char N[4] = { 128, 128, 255, 255 }; // flat normal
+    memcpy(c + 0, N, 4);
+    memcpy(c + 4, N, 4);
+    memcpy(c + 8, N, 4);
+    memcpy(c + 12, N, 4);
     return c;
 }
+
 
 void HelloTriangleApplication::createTextureImage2() {
     int w, h, ch;
@@ -1122,7 +1131,7 @@ void HelloTriangleApplication::createTextureImage2() {
 void HelloTriangleApplication::createTextureImageView2() {
     textureImageView2 = createImageView(
         textureImage2,
-        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_ASPECT_COLOR_BIT
     );
 }
@@ -1318,16 +1327,17 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     float t = std::chrono::duration<float>(now - t0).count();
 
     UniformBufferObject u{};
-    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f),
+    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::vec3 camPos = glm::vec3(0.0f, 1.5f, 3.0f);
+    glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 1.0f);
     u.view = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     u.proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     u.proj[1][1] *= -1;
 
     float R = 1.0f, omega = 1.5f;
-    u.lightPos = glm::vec3(0.0f, 3.0f, 3.0f);   // fixed light in front/right/up
+    u.lightPos = glm::vec3(1.5f, 0.5f, 1.0f);
+
     u.eyePos = camPos;
 
     memcpy(uniformBuffersMapped[frame], &u, sizeof(u));
