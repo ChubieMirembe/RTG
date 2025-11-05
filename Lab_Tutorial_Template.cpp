@@ -1079,7 +1079,7 @@ void HelloTriangleApplication::createTextureSampler() {
 
 // load tile (or fallback)
 static stbi_uc* loadTextureOrFallback2(int* w, int* h, int* ch) {
-    stbi_uc* p = stbi_load("rockNormal.bmp", w, h, ch, STBI_rgb_alpha);
+    stbi_uc* p = stbi_load("rockHeight.tga", w, h, ch, STBI_rgb_alpha);
     if (p) return p;
 
     *w = 2; *h = 2; *ch = 4;
@@ -1329,7 +1329,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     UniformBufferObject u{};
     u.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 1.0f);
+    glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 2.0f);
     u.view = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     u.proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);

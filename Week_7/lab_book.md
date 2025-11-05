@@ -188,18 +188,47 @@ between vertex and fragment shaders.
 
 **Solution:**
 
-
+- Fragment Shader Modifications:
 ```c++
+float h = texture(heightSampler, vUV).r;                    
+float dhdx = dFdx(h);                                         
+float dhdy = dFdy(h);                                           
+float bumpHeight = 0.4;                                         
+
+// build a pseudo-normal from height gradients
+vec3 N_tangent = normalize(vec3(-dhdx, -dhdy, bumpHeight));     
+
+vec3 L = normalize(fragLightDir_tangent);
+vec3 V = normalize(fragViewDir_tangent);
+vec3 H = normalize(L + V);
 ```
 
-```c++
-```
-
-```c++
-```
 **Output:**
+In this exercise I replaced the normal map with a height map and implemented bump mapping directly in the fragment shader. 
+I sampled the height value from the texture using texture(heightSampler, vUV).r and calculated the screen space derivatives 
+with dFdx and dFdy. I then constructed a perturbed normal using vec3 bumpN = normalize(vec3(-dhdx, -dhdy, bumpHeight)); and
+applied the same lighting model as before. The light, view and half vectors were calculated in world space from the uniform 
+buffer data and used to compute diffuse and specular lighting. On the C++ side I loaded rockHeight.tga into binding two as a 
+combined image sampler and kept the same descriptor layout so that the fragment shader could sample the height map.
+
+- Bumpier Surface:
+
+![](Images/ex3_bumpy)
+
+- Flat Surface:
+
+![](Images/ex3_flat))
+
+- Height Map:
+![](Images/ex3_height)
+
 
 **Reflection:**
+This task showed how a height map can be used to generate bump effects without relying on precomputed normals. Adjusting the
+bump height value changed how steep the surface appeared and demonstrated how sensitive the shading is to this parameter. A 
+smaller bump height produced stronger visible bumps because the Z component of the normal was reduced, while a larger value
+flattened the surface. This helped me understand the relationship between the gradient strength and the perceived surface 
+depth and how simple derivative based perturbations can give a convincing sense of texture detail.
 
 --------------------------------
 
