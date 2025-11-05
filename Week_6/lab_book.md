@@ -581,3 +581,11 @@ vec3 finalColor = isRearFace ? color2 : color1;
 ![](Images/ex9.png)
 
 **Reflection:**
+In completing this exercise I learned how to combine multiple textures and lighting within a single Vulkan 
+pipeline to create realistic materials on a 3D object. I gained a clearer understanding of how fragment 
+shaders can use surface orientation to dynamically select between different textures, allowing the same 
+geometry to display different materials on its inside and outside faces. I also learned the importance of
+enabling depth buffering so that fragments are rendered in the correct order and 3D scenes appear spatially 
+accurate. Implementing the depth image, view, and pipeline configuration helped me understand how Vulkan manages 
+per-fragment depth testing. Overall, this exercise strengthened my grasp of texture sampling, normal transformations, 
+and the role of depth in achieving visually correct 3D rendering.
