@@ -188,19 +188,36 @@ between vertex and fragment shaders.
 
 **Solution:**
 
+- Gray Scale Height Map:
+```c++
+float h = texture(heightSampler, vUV).r;
+vec3 albedo = vec3(h);
+```
+
 - Fragment Shader Modifications:
 ```c++
-float h = texture(heightSampler, vUV).r;                    
-float dhdx = dFdx(h);                                         
-float dhdy = dFdy(h);                                           
-float bumpHeight = 0.4;                                         
+vec3 albedo = texture(colSampler, vUV).rgb;
+float h = texture(heightSampler, vUV).r;
 
-// build a pseudo-normal from height gradients
-vec3 N_tangent = normalize(vec3(-dhdx, -dhdy, bumpHeight));     
+float dhdx = dFdx(h);
+float dhdy = dFdy(h);
 
-vec3 L = normalize(fragLightDir_tangent);
-vec3 V = normalize(fragViewDir_tangent);
+float bumpStrength = 50.0;
+vec3 bumpN = normalize(vec3(-dhdx * bumpStrength, -dhdy * bumpStrength, 1.0));
+
+vec3 L = normalize(ubo.lightPos - vWorldPos);
+vec3 V = normalize(ubo.eyePos  - vWorldPos);
 vec3 H = normalize(L + V);
+
+float diff = max(dot(bumpN, L), 0.0);
+float spec = pow(max(dot(bumpN, H), 0.0), 32.0);
+
+vec3 ambient  = 0.15 * albedo;
+vec3 diffuse  = diff * albedo;
+vec3 specular = spec * vec3(1.0);
+
+vec3 result = ambient + diffuse + specular;
+outColor = vec4(result, 1.0);
 ```
 
 **Output:**
@@ -220,7 +237,7 @@ combined image sampler and kept the same descriptor layout so that the fragment 
 ![](Images/ex3_flat))
 
 - Height Map:
-![](Images/ex3_height)
+![](Images/ex3_gray)
 
 
 **Reflection:**
