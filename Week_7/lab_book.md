@@ -252,19 +252,75 @@ depth and how simple derivative based perturbations can give a convincing sense 
 ### EXERCISE 4:  PROCEDURAL NORMAL MAPPING
 
 **Solution:**
+To complete the procedural normal mapping exercise, I generated a bumpy surface effect directly in the fragment shader 
+using mathematical functions rather than a normal or height map. I defined a bumpNormal() function that creates 
+dome-shaped normals within circular regions by mapping the current fragment’s coordinates with fract() and computing the
+normal as N.xy = st / sqrt(r² - (x² + y²)). Instead of relying on the cube’s UVs, I used world-space coordinates 
+(vWorldPos.xy) multiplied by a density value to ensure consistent tiling across all faces. The resulting normal was then
+used in a standard Blinn–Phong lighting model to produce specular highlights and diffuse shading, while the surface 
+colour came from a sampled texture. This combination of procedural normals and texturing produced a visually convincing
+bumpy pattern across the cube’s surface without using any normal or height maps.
 
-
+- Procedural Bump Normal Function:
 ```c++
+const float BumpDensity = 6.0;   //
+const float Radius      = 0.6;   // 
+
+vec3 bumpNormal(vec2 xy)
+{
+    vec3 N = vec3(0.0, 0.0, 1.0);
+    vec2 st = 2.0 * fract(xy) - 1.0; 
+
+    float r2 = Radius * Radius;
+    float d2 = dot(st, st);
+    float R2 = r2 - d2;
+
+    if (R2 > 0.0) {
+        float z = sqrt(R2);
+        N.xy = st / z;
+    }
+    return normalize(N);
+}
 ```
 
+- Fragment Shader Main Function:
 ```c++
+void main()
+{
+    // procedural normal in world space
+    vec2 p = vWorldPos.xy * BumpDensity;
+    vec3 N = bumpNormal(p);
+
+    // lighting setup
+    vec3 L = normalize(ubo.lightPos - vWorldPos);
+    vec3 V = normalize(ubo.eyePos  - vWorldPos);
+    vec3 H = normalize(L + V);
+    float NdotL = max(dot(N, L), 0.0);
+
+    // texture for base color
+    vec3 albedo = texture(colorTex, vUV).rgb;
+
+    // Blinn–Phong lighting
+    vec3 ambient  = 0.15 * albedo;
+    vec3 diffuse  = NdotL * albedo;
+    float spec    = pow(max(dot(N, H), 0.0), 32.0);
+    vec3 specular = vec3(1.0) * spec * 0.5;
+
+    outColor = vec4(ambient + diffuse + specular, 1.0);
+}
 ```
 
-```c++
-```
 **Output:**
 
+![](Images/ex4)
+
 **Reflection:**
+Initially, the cube appeared flat and featureless because the pattern derived from UV coordinates wasn’t varying enough 
+on each face, so the computed normals remained almost constant. Switching to world-space coordinates provided more 
+variation and allowed the bump function to generate visible curvature. Adjusting the bump density and radius further
+refined the spacing and prominence of the domes. This exercise showed me how lighting and shading can be controlled 
+purely by math, without image textures defining surface detail. It also reinforced how the choice of coordinate space
+affects procedural effects, using world or local coordinates can drastically change how patterns project onto 3D geometry.
 
 --------------------------------
 
@@ -286,3 +342,21 @@ depth and how simple derivative based perturbations can give a convincing sense 
 
 **Reflection:**
 
+### FURTHER EXPLORATION
+
+**Solution:**
+
+
+```c++
+```
+
+```c++
+```
+
+```c++
+```
+
+**Output:**
+
+
+**Reflection:**
