@@ -164,79 +164,6 @@ std::vector<Vertex> cubeVertices = {
     {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1}), {1,0,0}, {0,0,1}},
 };
 
-
-// Sphere geometry (non-indexed) --------------------------------------------
-//static std::vector<Vertex> sphereVertices;
-
-//static void buildUvSphere(int stacks, int slices) {
-//    sphereVertices.clear();
-//    const float radius = 0.05f; // small gizmo
-//    for (int i = 0; i < stacks; ++i) {
-//        float v0 = float(i) / stacks;
-//        float v1 = float(i + 1) / stacks;
-//        float phi0 = v0 * glm::pi<float>();
-//        float phi1 = v1 * glm::pi<float>();
-//
-//        for (int j = 0; j < slices; ++j) {
-//            float u0 = float(j) / slices;
-//            float u1 = float(j + 1) / slices;
-//            float theta0 = u0 * glm::two_pi<float>();
-//            float theta1 = u1 * glm::two_pi<float>();
-//
-//            auto p = [&](float phi, float theta) {
-//                glm::vec3 n{
-//                    std::sin(phi) * std::cos(theta),
-//                    std::cos(phi),
-//                    std::sin(phi) * std::sin(theta)
-//                };
-//                glm::vec3 pos = radius * n;
-//                glm::vec2 uv{ u0, v0 }; // will set per-vertex below
-//                return std::make_pair(pos, n);
-//                };
-//
-//            // 4 points of the quad (two triangles)
-//            glm::vec3 p00 = (glm::vec3{
-//                std::sin(phi0) * std::cos(theta0),
-//                std::cos(phi0),
-//                std::sin(phi0) * std::sin(theta0) }) * radius;
-//            glm::vec3 n00 = glm::normalize(p00 / radius);
-//            glm::vec2 t00{ u0, v0 };
-//
-//            glm::vec3 p10 = (glm::vec3{
-//                std::sin(phi0) * std::cos(theta1),
-//                std::cos(phi0),
-//                std::sin(phi0) * std::sin(theta1) }) * radius;
-//            glm::vec3 n10 = glm::normalize(p10 / radius);
-//            glm::vec2 t10{ u1, v0 };
-//
-//            glm::vec3 p01 = (glm::vec3{
-//                std::sin(phi1) * std::cos(theta0),
-//                std::cos(phi1),
-//                std::sin(phi1) * std::sin(theta0) }) * radius;
-//            glm::vec3 n01 = glm::normalize(p01 / radius);
-//            glm::vec2 t01{ u0, v1 };
-//
-//            glm::vec3 p11 = (glm::vec3{
-//                std::sin(phi1) * std::cos(theta1),
-//                std::cos(phi1),
-//                std::sin(phi1) * std::sin(theta1) }) * radius;
-//            glm::vec3 n11 = glm::normalize(p11 / radius);
-//            glm::vec2 t11{ u1, v1 };
-//
-//            auto red = glm::vec3(1.0f, 0.2f, 0.2f);
-//
-//            // tri 1
-//            sphereVertices.push_back({ p00, red, n00, t00 });
-//            sphereVertices.push_back({ p10, red, n10, t10 });
-//            sphereVertices.push_back({ p11, red, n11, t11 });
-//            // tri 2
-//            sphereVertices.push_back({ p00, red, n00, t00 });
-//            sphereVertices.push_back({ p11, red, n11, t11 });
-//            sphereVertices.push_back({ p01, red, n01, t01 });
-//        }
-//    }
-//}
-
 // --- Forward declarations of Vulkan helpers ---
 VkResult CreateDebugUtilsMessengerEXT(
     VkInstance, const VkDebugUtilsMessengerCreateInfoEXT*,
@@ -268,7 +195,6 @@ static void DestroyDebugUtilsMessengerEXT(
         func(instance, debugMessenger, pAllocator);
     }
 }
-
 
 class HelloTriangleApplication {
 public:
@@ -316,6 +242,11 @@ private:
     VkDeviceMemory textureImageMemory2;
     VkImageView textureImageView2;
     VkSampler textureSampler2;
+
+    VkImage textureImage3 = VK_NULL_HANDLE;
+    VkDeviceMemory textureImageMemory3 = VK_NULL_HANDLE;
+    VkImageView textureImageView3 = VK_NULL_HANDLE;
+    VkSampler textureSampler3 = VK_NULL_HANDLE;
 
 	// Depth format finder
     VkFormat findDepthFormat();
@@ -365,6 +296,9 @@ private:
     void createTextureImageView2();
     void createTextureSampler2();
 
+    void createTextureImage3();
+    void createTextureImageView3();
+    void createTextureSampler3();
 
     void createVertexBuffers();
     void createUniformBuffers();
@@ -457,6 +391,11 @@ void HelloTriangleApplication::initVulkan() {
     STEP("createTextureImageView2"); createTextureImageView2();
     STEP("createTextureSampler2");  createTextureSampler2();
 
+    STEP("createTextureImage3");    createTextureImage3();
+    STEP("createTextureImageView3"); createTextureImageView3();
+    STEP("createTextureSampler3");  createTextureSampler3();
+
+
 
     STEP("build geometry");
 
@@ -494,6 +433,12 @@ void HelloTriangleApplication::cleanup() {
     vkDestroyImageView(device, textureImageView2, nullptr);
     vkDestroyImage(device, textureImage2, nullptr);
     vkFreeMemory(device, textureImageMemory2, nullptr);
+
+    vkDestroySampler(device, textureSampler3, nullptr);
+    vkDestroyImageView(device, textureImageView3, nullptr);
+    vkDestroyImage(device, textureImage3, nullptr);
+    vkFreeMemory(device, textureImageMemory3, nullptr);
+
 
     if (cubeVertexBuffer) {
         vkDestroyBuffer(device, cubeVertexBuffer, nullptr);
@@ -844,21 +789,25 @@ void HelloTriangleApplication::createDescriptorSetLayout() {
     ubo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    // binding 1 = first texture (coin)
     VkDescriptorSetLayoutBinding tex1{};
     tex1.binding = 1;
     tex1.descriptorCount = 1;
     tex1.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     tex1.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    // binding 2 = second texture (tile)
     VkDescriptorSetLayoutBinding tex2{};
     tex2.binding = 2;
     tex2.descriptorCount = 1;
     tex2.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     tex2.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 3> bindings{ ubo, tex1, tex2 };
+    VkDescriptorSetLayoutBinding tex3{};
+    tex3.binding = 3;
+    tex3.descriptorCount = 1;
+    tex3.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    tex3.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 4> bindings{ ubo, tex1, tex2, tex3 };
 
     VkDescriptorSetLayoutCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1010,7 +959,7 @@ void HelloTriangleApplication::createCommandPool() {
 
 // --- Textures (simple load, no mipmaps) -----------------------------------
 static stbi_uc* loadTextureOrFallback(int* w, int* h, int* ch) {
-    stbi_uc* p = stbi_load("stone.jpg", w, h, ch, STBI_rgb_alpha);
+    stbi_uc* p = stbi_load("rockColour.png", w, h, ch, STBI_rgb_alpha);
     if (p) return p;
     // 2x2 checker fallback
     *w = 2; *h = 2; *ch = 4;
@@ -1079,7 +1028,7 @@ void HelloTriangleApplication::createTextureSampler() {
 
 // load tile (or fallback)
 static stbi_uc* loadTextureOrFallback2(int* w, int* h, int* ch) {
-    stbi_uc* p = stbi_load("rockHeight.tga", w, h, ch, STBI_rgb_alpha);
+    stbi_uc* p = stbi_load("rockNormal.bmp", w, h, ch, STBI_rgb_alpha);
     if (p) return p;
 
     *w = 2; *h = 2; *ch = 4;
@@ -1110,7 +1059,7 @@ void HelloTriangleApplication::createTextureImage2() {
     vkUnmapMemory(device, stagingMem);
     stbi_image_free(pixels);
 
-    createImage((uint32_t)w, (uint32_t)h, VK_FORMAT_R8G8B8A8_SRGB,
+    createImage((uint32_t)w, (uint32_t)h, VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -1159,6 +1108,94 @@ void HelloTriangleApplication::createTextureSampler2() {
     }
 }
 
+void HelloTriangleApplication::createTextureImage3() {
+    int w, h, ch;
+    stbi_uc* pixels = stbi_load("rockHeight.tga", &w, &h, &ch, STBI_rgb_alpha);
+    if (!pixels) {
+        throw std::runtime_error("failed to load height.png");
+    }
+
+    VkDeviceSize imageSize = (VkDeviceSize)w * h * 4;
+
+    VkBuffer staging;
+    VkDeviceMemory stagingMem;
+    createBuffer(
+        imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        staging,
+        stagingMem
+    );
+
+    void* data;
+    vkMapMemory(device, stagingMem, 0, imageSize, 0, &data);
+    memcpy(data, pixels, (size_t)imageSize);
+    vkUnmapMemory(device, stagingMem);
+    stbi_image_free(pixels);
+
+    createImage(
+        (uint32_t)w,
+        (uint32_t)h,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        textureImage3,
+        textureImageMemory3
+    );
+
+    transitionImageLayout(
+        textureImage3,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT
+    );
+
+    copyBufferToImage(staging, textureImage3, (uint32_t)w, (uint32_t)h);
+
+    transitionImageLayout(
+        textureImage3,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT
+    );
+
+    vkDestroyBuffer(device, staging, nullptr);
+    vkFreeMemory(device, stagingMem, nullptr);
+}
+
+void HelloTriangleApplication::createTextureImageView3() {
+    textureImageView3 = createImageView(
+        textureImage3,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_ASPECT_COLOR_BIT
+    );
+}
+
+void HelloTriangleApplication::createTextureSampler3() {
+    VkPhysicalDeviceProperties props{};
+    vkGetPhysicalDeviceProperties(physicalDevice, &props);
+
+    VkSamplerCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    info.magFilter = VK_FILTER_LINEAR;
+    info.minFilter = VK_FILTER_LINEAR;
+    info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.anisotropyEnable = VK_TRUE;
+    info.maxAnisotropy = props.limits.maxSamplerAnisotropy;
+    info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    info.unnormalizedCoordinates = VK_FALSE;
+    info.compareEnable = VK_FALSE;
+    info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+    if (vkCreateSampler(device, &info, nullptr, &textureSampler3) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create sampler3");
+    }
+}
 
 // --- Vertex buffers for cube and sphere ------------------------------------
 void HelloTriangleApplication::createVertexBuffers() {
@@ -1197,7 +1234,7 @@ void HelloTriangleApplication::createUniformBuffers() {
 }
 
 void HelloTriangleApplication::createDescriptorPool() {
-    std::array<VkDescriptorPoolSize, 3> poolSizes{};
+    std::array<VkDescriptorPoolSize, 4> poolSizes{};
 
     // UBOs
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1210,6 +1247,9 @@ void HelloTriangleApplication::createDescriptorPool() {
     // second sampler
     poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+
+    poolSizes[3].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[3].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1255,7 +1295,13 @@ void HelloTriangleApplication::createDescriptorSets() {
         imageInfo2.imageView = textureImageView2;
         imageInfo2.sampler = textureSampler2;
 
-        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+        // height
+        VkDescriptorImageInfo imageInfo3{};
+        imageInfo3.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo3.imageView = textureImageView3;
+        imageInfo3.sampler = textureSampler3;
+
+        std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
 
         // binding 0 = UBO
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1283,6 +1329,13 @@ void HelloTriangleApplication::createDescriptorSets() {
         descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorWrites[2].descriptorCount = 1;
         descriptorWrites[2].pImageInfo = &imageInfo2;
+
+        descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[3].dstSet = descriptorSets[i];
+        descriptorWrites[3].dstBinding = 3;
+        descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[3].descriptorCount = 1;
+        descriptorWrites[3].pImageInfo = &imageInfo3;
 
         vkUpdateDescriptorSets(device,
             static_cast<uint32_t>(descriptorWrites.size()),
@@ -1327,7 +1380,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     float t = std::chrono::duration<float>(now - t0).count();
 
     UniformBufferObject u{};
-    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(20.0f),
+    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
     glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 2.0f);
     u.view = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -1336,7 +1389,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     u.proj[1][1] *= -1;
 
     float R = 1.0f, omega = 1.5f;
-    u.lightPos = glm::vec3(1.5f, 0.5f, 1.0f);
+    u.lightPos = glm::vec3(2.0f, 2.0f, 2.0f);
 
     u.eyePos = camPos;
 
