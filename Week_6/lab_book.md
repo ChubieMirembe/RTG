@@ -4,6 +4,7 @@
 ### EXERCISE 1: PREPARING THE APPLICATION FOR TEXTURES
 
 **Solution:**
+
 The external image-loading header file stb_image.h was downloaded from the official GitHub repository and 
 placed into a Dependencies folder within the project for better organization. The macro 
 STB_IMAGE_IMPLEMENTATION was defined before including <stb_image.h> to enable loading of PNG and JPG files
@@ -48,6 +49,7 @@ struct Vertex {
 ```
 
 **Reflection:**
+
 This exercise introduced the foundational requirements for supporting textures within a Vulkan application. 
 I learned that the graphics pipeline must be informed not only of vertex position and colour data, but also 
 of UV coordinates that define how a 2D image is mapped onto 3D geometry. Updating the Vertex structure and
@@ -63,23 +65,14 @@ contribute to correct texture usage in Vulkan.
 ### EXERCISE 2: LOADING AND CREATING VULKAN IMAGE RESOURCES
 
 **Solution:**
-In this exercise, I implemented the complete Vulkan texture-loading workflow  from reading an image file on the CPU to creating a fully functional 
-GPU texture object ready for sampling in the shader. The process involved understanding how data flows between host and device memory, how Vulkan
-handles image layouts and synchronization, and how samplers define how textures are accessed.
 
-I began by declaring four main Vulkan objects (VkImage, VkDeviceMemory, VkImageView, and VkSampler) to represent the texture resource, its memory,
-view, and sampling configuration. I used stb_image to load an image file (wall.jpg) and obtain pixel data in RGBA format, then created a staging 
-buffer that temporarily stored this data in host-visible memory. The pixel data was mapped into this buffer using vkMapMemory() and later un-mapped
-before freeing the CPU copy with stbi_image_free().
+In this exercise, I implemented the complete Vulkan texture-loading workflow  from reading an image file on the CPU to creating a fully functional GPU texture object ready for sampling in the shader. The process involved understanding how data flows between host and device memory, how Vulkanhandles image layouts and synchronization, and how samplers define how textures are accessed.
 
-Next, I created a GPU-resident VkImage using device-local memory. This step ensured that the texture resides in high-performance memory optimized 
-for sampling. Before the texture could be used, it was transitioned through layout states: first from UNDEFINED to TRANSFER_DST_OPTIMAL for data 
-transfer, and then from TRANSFER_DST_OPTIMAL to SHADER_READ_ONLY_OPTIMAL for shader access. These transitions were handled using pipeline barriers 
-recorded and executed within one-time command buffers. The data transfer itself was performed using vkCmdCopyBufferToImage().
+I began by declaring four main Vulkan objects (VkImage, VkDeviceMemory, VkImageView, and VkSampler) to represent the texture resource, its memory, view, and sampling configuration. I used stb_image to load an image file (wall.jpg) and obtain pixel data in RGBA format, then created a staging buffer that temporarily stored this data in host-visible memory. The pixel data was mapped into this buffer using vkMapMemory() and later un-mapped before freeing the CPU copy with stbi_image_free().
 
-After transferring, I created an image view (VkImageView) to define how the image would be accessed in the shader, and a sampler (VkSampler) that 
-controls filtering and addressing behavior. The sampler used linear filtering, repeat wrapping, and anisotropic filtering based on device limits.
-Finally, I cleaned up the staging buffer since the data had already been copied to GPU memory.
+Next, I created a GPU-resident VkImage using device-local memory. This step ensured that the texture resides in high-performance memory optimized for sampling. Before the texture could be used, it was transitioned through layout states: first from UNDEFINED to TRANSFER_DST_OPTIMAL for data transfer, and then from TRANSFER_DST_OPTIMAL to SHADER_READ_ONLY_OPTIMAL for shader access. These transitions were handled using pipeline barriers recorded and executed within one-time command buffers. The data transfer itself was performed using vkCmdCopyBufferToImage().
+
+After transferring, I created an image view (VkImageView) to define how the image would be accessed in the shader, and a sampler (VkSampler) that controls filtering and addressing behavior. The sampler used linear filtering, repeat wrapping, and anisotropic filtering based on device limits. Finally, I cleaned up the staging buffer since the data had already been copied to GPU memory.
 
 - Creating the Image:
 ```c++
@@ -209,6 +202,7 @@ void HelloTriangleApplication::createTextureSampler() {
 ```
 
 **Reflection:**
+
 This exercise deepened my understanding of how Vulkan manages textures at a low level. I learned that loading an image involves several explicit 
 steps such as creating a staging buffer, transferring data to a GPU-local image, performing layout transitions, and setting up an image view and 
 sampler.
@@ -228,6 +222,7 @@ and material systems.
 ### EXERCISE 4: BINDING AND SHADER UPDATES
 
 **Solution:**
+
 With the texture image, view, and sampler successfully created, I updated the descriptor set layout to include a second binding for the combined 
 image sampler. This ensured that the fragment shader could access the texture along with the uniform buffer data. The descriptor pool was expanded 
 to support both uniform buffer and sampler descriptors, and each descriptor set was written with two bindings, one for the uniform buffer (binding 0)
@@ -240,8 +235,9 @@ all texture-related Vulkan objects, including the sampler, image view, image, an
 This completed the full Vulkan texture-loading workflow, allowing the cube to render with the applied texture. Through this exercise, I gained a clear 
 understanding of how Vulkan handles image creation, memory transitions, descriptor bindings, and sampler configuration to enable textured rendering.
 
+- Descriptor Set Layout with Texture Sampler Binding:
 ```c++
-// Add sampler binding alongside the existing UBO
+
 VkDescriptorSetLayoutBinding ubo{};
 ubo.binding = 0;
 ubo.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -249,7 +245,7 @@ ubo.descriptorCount = 1;
 ubo.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
 
 VkDescriptorSetLayoutBinding sampler{};
-sampler.binding = 1;                                       // New binding
+sampler.binding = 1;                                      
 sampler.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 sampler.descriptorCount = 1;
 sampler.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -262,6 +258,8 @@ layoutInfo.pBindings    = bindings.data();
 
 vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout);
 ```
+
+- Descriptor Pool Creation with Sampler Support:
 ```c++
 std::array<VkDescriptorPoolSize, 2> poolSizes{};
 poolSizes[0] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         MAX_FRAMES_IN_FLIGHT };
@@ -274,7 +272,7 @@ poolInfo.maxSets       = MAX_FRAMES_IN_FLIGHT;
 
 vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
 ```
-
+- Writing Descriptor Sets with Texture Sampler:
 ```c++
 VkDescriptorImageInfo imageInfo{};
 imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -292,9 +290,11 @@ vkUpdateDescriptorSets(device, 1, &samplerWrite, 0, nullptr);
 ```
 
 **Output:**
-![](Week_6/Images/ex4.png)
+
+![](Images/ex4.png)
 
 **Reflection:**
+
 This exercise helped me understand how to actually get textures working in Vulkan instead of just loading them. I learned that creating the image 
 isn’t enough; you have to connect it to the shaders through descriptor layouts, descriptor sets, and samplers. Setting up the combined image sampler 
 in the descriptor layout made it clear how Vulkan links texture data to the fragment shader. I also realized how hands-on Vulkan is, since you have
@@ -304,9 +304,10 @@ sample the image. Overall, it was satisfying to finally see how everything fits 
 all work in sync to display a textured cube.
 
 --- 
-### EXERCISE 5:A WOODEN CUBE
+### EXERCISE 5: A WOODEN CUBE
 
 **Solution:**
+
 For this exercise, I integrated both per-fragment lighting and a moving light sphere (gizmo) to visualize the light source. 
 The original vertex colour input from the cube geometry was replaced with a texture sampled from the converted wood.jpg image 
 (originally wood.dds). This was achieved by loading the texture through stb_image.h, creating a Vulkan image and sampler, and 
@@ -368,9 +369,10 @@ ubo.lightPos = glm::vec3(R * cos(omega * t), 0.5f, R * sin(omega * t));
 **Output:**
 
 ![](Images/ex5_1.png)
-![](Images/ex5_2.png)]
+![](Images/ex5_2.png)
 
 **Reflection:**
+
 Through this task, I deepened my understanding of how Vulkan’s per-fragment lighting pipeline integrates texture sampling, uniform 
 buffers, and push constants. I learned how texture mapping replaces per-vertex colours in the fragment stage and how descriptor 
 sets allow textures to be bound and sampled efficiently. Implementing the moving light sphere reinforced how push constants can 
@@ -379,9 +381,12 @@ separately for the UBO and for drawing the sphere. Next time, I will compute the
 reusing the same value for both the uniform buffer update and the sphere transform to avoid divergence and improve clarity and 
 performance.
 
+---
+
 ### Exercise 6. TEXTURE WRAPPING MODE
 
 **Solution:**
+
 I created a texture-mapped cube using the Coin.jpg texture, with each face displaying a different number of coin repetitions. This 
 was achieved by modifying the per-vertex UV coordinates rather than altering the texture or shader. I assigned UV ranges that 
 extended beyond the standard [0,1] range, causing the texture to wrap and repeat according to the sampler’s 
@@ -416,15 +421,19 @@ info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 ```
 **Output:**
+
 ![](Images/ex6.png)
 
 **Reflection:**
+
 Through this exercise, I learned how texture coordinates directly influence how textures are mapped and repeated on 3D surfaces.
 Adjusting the UVs at the vertex level provided an intuitive way to control the scale and repetition of the texture without needing
 additional shaders or multiple draw calls. It also reinforced my understanding of how the REPEAT wrapping mode interacts with UV 
 coordinates beyond [0,1]. In future implementations, I plan to explore dynamic approaches such as using push constants or per-face
 uniform values to adjust texture scaling programmatically rather than embedding the UV scaling into the vertex data. This would
 make the solution more flexible and reusable across different models.
+
+---
 
 ### Exercise 7. TEXTURE FILTERING TECHNIQUES.
 
@@ -502,9 +511,12 @@ sharp on surfaces viewed at shallow angles such as the stretched road. Overall I
 sampling methods reduce blurring and aliasing and how careful filtering selection can significantly improve visual realism 
 without changing the geometry.
 
-### EXERCISE 8. MULTIPLE TEXTURING
+---
+
+### EXERCISE 8: MULTIPLE TEXTURING
 
 **Solution:**
+
 To complete this exercise I extended the existing texture system by creating one additional texture rather 
 than redesigning the whole pipeline. The original texture setup was kept for the coin image, and a new texture
 was added for the tiled surface. This required defining one more texture image, view, and sampler in the C++ 
@@ -515,9 +527,11 @@ lit, allowing the two textures to blend clearly. This addition of a second textu
 achieved the multiple-texturing outcome required for the exercise.
 
 **Output:**
+
 ![](Images/ex8.png)
 
 **Reflection:**
+
 Through this exercise I learned how to extend a Vulkan texture pipeline to support multiple textures and how 
 descriptor bindings directly connect data on the CPU side to shader inputs on the GPU. Adding a second texture 
 showed the importance of managing image views, samplers, and descriptor updates in parallel to ensure both
@@ -527,9 +541,12 @@ reinforced how even small lighting adjustments can affect how clearly textures a
 task helped strengthen my confidence in handling descriptor layouts, texture management, and shader 
 coordination to achieve a richer and more controlled rendering result.
 
-### EXERCISE 9.AN OPEN BOX 
+---
+
+### EXERCISE 9: AN OPEN BOX 
 
 **Solution:**
+
 To achieve the cube with rock on the outside and wood on the inside while leaving the top open, I configured the Vulkan 
 pipeline to use two textures and handle both surfaces within a single mesh. I loaded two images, rock.jpg and wood.jpg,
 created their image views and samplers, and bound them to descriptor set bindings 1 and 2 alongside the uniform buffer 
