@@ -120,13 +120,19 @@ void main()
         spec = pow(max(dot(nrmWorld, H), 0.0), shininess);
     }
 
+    // small base light so faces not hit by the light are still visible
+    vec3 ambient = albedo * 0.2;  // try 0.2–0.3
+
     vec3 diffuse  = albedo * NdotL;
     vec3 specular = vec3(0.15) * spec;
-    vec3 color    = diffuse + specular;
+
+    // now include ambient
+    vec3 color    = ambient + diffuse + specular;
 
     if (pc.unlit == 1u) {
         color = albedo;
     }
 
     outColor = vec4(color, 1.0);
+
 }

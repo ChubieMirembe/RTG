@@ -35,6 +35,8 @@ static void glfwErrorCallback(int code, const char* desc) {
     std::cerr << "[GLFW] (" << code << ") " << desc << std::endl;
 }
 
+static constexpr bool USE_DEPTH = true;
+
 // --- Configuration ---
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -903,15 +905,27 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     if (vkCreatePipelineLayout(device, &pl, nullptr, &pipelineLayout) != VK_SUCCESS)
         throw std::runtime_error("Failed to create pipeline layout!");
+    
+    auto makeDepthState = [&](VkBool32 test, VkBool32 write, VkCompareOp op) {
+        VkPipelineDepthStencilStateCreateInfo d{};
+        d.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        d.depthTestEnable = test;
+        d.depthWriteEnable = write;
+        d.depthCompareOp = op;
+        d.depthBoundsTestEnable = VK_FALSE;
+        d.stencilTestEnable = VK_FALSE;
+        return d;
+        };
 
     // NEW: Depth stencil state
     VkPipelineDepthStencilStateCreateInfo depth{};
     depth.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depth.depthTestEnable = VK_TRUE;
-    depth.depthWriteEnable = VK_TRUE;
+    depth.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
+    depth.depthWriteEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
     depth.depthCompareOp = VK_COMPARE_OP_LESS;
     depth.depthBoundsTestEnable = VK_FALSE;
     depth.stencilTestEnable = VK_FALSE;
+
 
     // Dynamic rendering info includes depth format
     VkFormat depthFormat = findDepthFormat();
@@ -1380,9 +1394,9 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     float t = std::chrono::duration<float>(now - t0).count();
 
     UniformBufferObject u{};
-    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
+    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 2.0f);
+    glm::vec3 camPos = glm::vec3(0.0f, 1.0f, 2.0f);
     u.view = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     u.proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
