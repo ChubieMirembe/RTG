@@ -894,7 +894,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     VkPipelineRasterizationStateCreateInfo rsCommon{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
     rsCommon.polygonMode = VK_POLYGON_MODE_FILL;
-    rsCommon.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rsCommon.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rsCommon.lineWidth = 1.0f;
 
     VkPipelineMultisampleStateCreateInfo ms{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
@@ -931,7 +931,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     // ---------- SKYBOX PIPELINE (front-face cull, no depth write) ----------
     VkPipelineRasterizationStateCreateInfo rsSky = rsCommon;
-    rsSky.cullMode = VK_CULL_MODE_BACK_BIT;
+    rsSky.cullMode = VK_CULL_MODE_FRONT_BIT;
 
     VkPipelineDepthStencilStateCreateInfo dzSky{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
     dzSky.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
@@ -959,7 +959,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
     // ---------- REFLECTIVE PIPELINE (back-face cull, write depth) ----------
     VkPipelineRasterizationStateCreateInfo rsRefl = rsCommon;
-    rsRefl.cullMode = VK_CULL_MODE_FRONT_BIT;
+    rsRefl.cullMode = VK_CULL_MODE_BACK_BIT;
 
     VkPipelineDepthStencilStateCreateInfo dzRefl{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
     dzRefl.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
