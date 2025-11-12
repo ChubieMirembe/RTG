@@ -52,6 +52,9 @@ It also put me on the path of making my rendering engine more flexible and confi
 
 
 **Reflection:**
+I made the mistake of rendering the textures from the previous lab alongside the skybox. The caused my window to just open and close immediately. 
+After fixing this mistake, I was able to see the skybox rendered correctly. This exercise helped me understand the importance of management 
+of resources to ensure that only the intended elements are rendered in a scene.
 
 
 ---
