@@ -242,6 +242,9 @@ private:
     VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     VkPipeline graphicsPipeline = VK_NULL_HANDLE;
+    VkPipeline skyboxPipeline = VK_NULL_HANDLE;
+    VkPipeline reflectPipeline = VK_NULL_HANDLE;
+
 
     // Texture
     VkImage textureImage = VK_NULL_HANDLE;
@@ -864,137 +867,116 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     VkShaderModule vs = createShaderModule(vertShaderCode);
     VkShaderModule fs = createShaderModule(fragShaderCode);
 
-    VkPipelineShaderStageCreateInfo vssi{};
-    vssi.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vssi.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vssi.module = vs;
-    vssi.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fssi{};
-    fssi.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fssi.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fssi.module = fs;
-    fssi.pName = "main";
-
-    VkPipelineShaderStageCreateInfo stages[] = { vssi, fssi };
+    VkPipelineShaderStageCreateInfo stages[2]{};
+    stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    stages[0].module = vs;
+    stages[0].pName = "main";
+    stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    stages[1].module = fs;
+    stages[1].pName = "main";
 
     auto bindDesc = Vertex::getBindingDescription();
     auto attrDesc = Vertex::getAttributeDescriptions();
 
-    VkPipelineVertexInputStateCreateInfo vi{};
-    vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    VkPipelineVertexInputStateCreateInfo vi{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
     vi.vertexBindingDescriptionCount = 1;
     vi.pVertexBindingDescriptions = &bindDesc;
-    vi.vertexAttributeDescriptionCount = static_cast<uint32_t>(attrDesc.size());
+    vi.vertexAttributeDescriptionCount = (uint32_t)attrDesc.size();
     vi.pVertexAttributeDescriptions = attrDesc.data();
 
-    VkPipelineInputAssemblyStateCreateInfo ia{};
-    ia.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    VkPipelineInputAssemblyStateCreateInfo ia{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
     ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-    VkPipelineViewportStateCreateInfo vp{};
-    vp.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    vp.viewportCount = 1;
-    vp.scissorCount = 1;
+    VkPipelineViewportStateCreateInfo vp{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+    vp.viewportCount = 1; vp.scissorCount = 1;
 
-    VkPipelineRasterizationStateCreateInfo rs{};
-    rs.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rs.polygonMode = VK_POLYGON_MODE_FILL;
-    rs.cullMode = VK_CULL_MODE_FRONT_BIT;
-    rs.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rs.lineWidth = 1.0f;
+    VkPipelineRasterizationStateCreateInfo rsCommon{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+    rsCommon.polygonMode = VK_POLYGON_MODE_FILL;
+    rsCommon.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rsCommon.lineWidth = 1.0f;
 
-    VkPipelineMultisampleStateCreateInfo ms{};
-    ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    VkPipelineMultisampleStateCreateInfo ms{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
     ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
     VkPipelineColorBlendAttachmentState cba{};
     cba.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    cba.blendEnable = VK_FALSE;
 
-    VkPipelineColorBlendStateCreateInfo cb{};
-    cb.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    cb.attachmentCount = 1;
-    cb.pAttachments = &cba;
+    VkPipelineColorBlendStateCreateInfo cb{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    cb.attachmentCount = 1; cb.pAttachments = &cba;
 
-    std::vector<VkDynamicState> dyn = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-    VkPipelineDynamicStateCreateInfo ds{};
-    ds.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    std::vector<VkDynamicState> dyn = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    VkPipelineDynamicStateCreateInfo ds{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
     ds.dynamicStateCount = (uint32_t)dyn.size();
     ds.pDynamicStates = dyn.data();
 
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    pcr.offset = 0;
-    pcr.size = sizeof(PushConstants);
+    pcr.offset = 0; pcr.size = sizeof(PushConstants);
 
-    VkPipelineLayoutCreateInfo pl{};
-    pl.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pl.setLayoutCount = 1;
-    pl.pSetLayouts = &descriptorSetLayout;
-    pl.pushConstantRangeCount = 1;
-    pl.pPushConstantRanges = &pcr;
+    VkPipelineLayoutCreateInfo pl{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    pl.setLayoutCount = 1; pl.pSetLayouts = &descriptorSetLayout;
+    pl.pushConstantRangeCount = 1; pl.pPushConstantRanges = &pcr;
 
     if (vkCreatePipelineLayout(device, &pl, nullptr, &pipelineLayout) != VK_SUCCESS)
         throw std::runtime_error("Failed to create pipeline layout!");
-    
-    auto makeDepthState = [&](VkBool32 test, VkBool32 write, VkCompareOp op) {
-        VkPipelineDepthStencilStateCreateInfo d{};
-        d.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        d.depthTestEnable = test;
-        d.depthWriteEnable = write;
-        d.depthCompareOp = op;
-        d.depthBoundsTestEnable = VK_FALSE;
-        d.stencilTestEnable = VK_FALSE;
-        return d;
-        };
 
-    // NEW: Depth stencil state
-    VkPipelineDepthStencilStateCreateInfo depth{};
-    depth.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depth.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
-    depth.depthWriteEnable = VK_FALSE; // USE_DEPTH ? VK_TRUE : VK_FALSE;
-    depth.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-    depth.depthBoundsTestEnable = VK_FALSE;
-    depth.stencilTestEnable = VK_FALSE;
-
-
-    // Dynamic rendering info includes depth format
     VkFormat depthFormat = findDepthFormat();
-
-    VkPipelineRenderingCreateInfo rend{};
-    rend.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    VkPipelineRenderingCreateInfo rend{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
     rend.colorAttachmentCount = 1;
     rend.pColorAttachmentFormats = &swapChainImageFormat;
     rend.depthAttachmentFormat = depthFormat;
 
-    VkGraphicsPipelineCreateInfo gp{};
-    gp.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    gp.pNext = &rend;
-    gp.stageCount = 2;
-    gp.pStages = stages;
-    gp.pVertexInputState = &vi;
-    gp.pInputAssemblyState = &ia;
-    gp.pViewportState = &vp;
-    gp.pRasterizationState = &rs;
-    gp.pMultisampleState = &ms;
-    gp.pColorBlendState = &cb;
-    gp.pDynamicState = &ds;
-    gp.pDepthStencilState = &depth; // <-- Added
-    gp.layout = pipelineLayout;
-    gp.renderPass = VK_NULL_HANDLE;
-    gp.subpass = 0;
+    // ---------- SKYBOX PIPELINE (front-face cull, no depth write) ----------
+    VkPipelineRasterizationStateCreateInfo rsSky = rsCommon;
+    rsSky.cullMode = VK_CULL_MODE_BACK_BIT;
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gp, nullptr, &graphicsPipeline) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create graphics pipeline!");
+    VkPipelineDepthStencilStateCreateInfo dzSky{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    dzSky.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
+    dzSky.depthWriteEnable = VK_FALSE;
+    dzSky.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+    VkGraphicsPipelineCreateInfo gps[2]{};
+    gps[0].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    gps[0].pNext = &rend;
+    gps[0].stageCount = 2;       gps[0].pStages = stages;
+    gps[0].pVertexInputState = &vi;
+    gps[0].pInputAssemblyState = &ia;
+    gps[0].pViewportState = &vp;
+    gps[0].pRasterizationState = &rsSky;
+    gps[0].pMultisampleState = &ms;
+    gps[0].pColorBlendState = &cb;
+    gps[0].pDynamicState = &ds;
+    gps[0].pDepthStencilState = &dzSky;
+    gps[0].layout = pipelineLayout;
+    gps[0].renderPass = VK_NULL_HANDLE;
+    gps[0].subpass = 0;
+
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gps[0], nullptr, &skyboxPipeline) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create skybox pipeline!");
+
+    // ---------- REFLECTIVE PIPELINE (back-face cull, write depth) ----------
+    VkPipelineRasterizationStateCreateInfo rsRefl = rsCommon;
+    rsRefl.cullMode = VK_CULL_MODE_FRONT_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo dzRefl{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    dzRefl.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
+    dzRefl.depthWriteEnable = VK_TRUE;                   // <- important
+    dzRefl.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+    gps[1] = gps[0];
+    gps[1].pRasterizationState = &rsRefl;
+    gps[1].pDepthStencilState = &dzRefl;
+
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gps[1], nullptr, &reflectPipeline) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create reflective pipeline!");
 
     vkDestroyShaderModule(device, fs, nullptr);
     vkDestroyShaderModule(device, vs, nullptr);
 }
+
 
 
 void HelloTriangleApplication::createCommandPool() {
@@ -1426,23 +1408,24 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
     ri.pDepthAttachment = &depth;
 
     vkCmdBeginRendering(cb, &ri);
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-    VkViewport vp{ 0, 0, (float)swapChainExtent.width, (float)swapChainExtent.height, 0.0f, 1.0f };
+    // 1) draw skybox
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
+    VkViewport vp{ 0,0,(float)swapChainExtent.width,(float)swapChainExtent.height,0.0f,1.0f };
     VkRect2D sc{ {0,0}, swapChainExtent };
     vkCmdSetViewport(cb, 0, 1, &vp);
     vkCmdSetScissor(cb, 0, 1, &sc);
 
-    // bind descriptors
+    // descriptors (UBO+sampler) already bound below, so bind once before both draws
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
-    // VB: reuse your cube geometry
+    // VB bind
     VkBuffer vbs[] = { cubeVertexBuffer };
     VkDeviceSize offs[] = { 0 };
     vkCmdBindVertexBuffers(cb, 0, 1, vbs, offs);
 
-    // push constants (unlit skybox)
+    // push for skybox
     PushConstants sky{};
     sky.useOverride = 1u;
     sky.unlit = 1u;
@@ -1451,10 +1434,21 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         0, (uint32_t)sizeof(PushConstants), &sky);
 
-    // draw once
+    vkCmdDraw(cb, (uint32_t)cubeVertices.size(), 1, 0, 0);
+
+    // 2) draw reflective cube
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, reflectPipeline);
+    PushConstants refl{};
+    refl.useOverride = 0u;                 // use UBO.model
+    refl.unlit = 0u;                  // run reflection shader
+    vkCmdPushConstants(cb, pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        0, (uint32_t)sizeof(PushConstants), &refl);
+
     vkCmdDraw(cb, (uint32_t)cubeVertices.size(), 1, 0, 0);
 
     vkCmdEndRendering(cb);
+
 
 
     // Transition for presentation
@@ -1544,9 +1538,14 @@ void HelloTriangleApplication::recreateSwapChain() {
     createSwapChain();
     createImageViews();
     createDepthResources();   // <-- add this
+    createGraphicsPipeline();
 }
 
 void HelloTriangleApplication::cleanupSwapChain() {
+    // add before destroying depth/image views
+    if (skyboxPipeline) { vkDestroyPipeline(device, skyboxPipeline, nullptr); skyboxPipeline = VK_NULL_HANDLE; }
+    if (reflectPipeline) { vkDestroyPipeline(device, reflectPipeline, nullptr); reflectPipeline = VK_NULL_HANDLE; }
+
     vkDestroyImageView(device, depthImageView, nullptr);
     vkDestroyImage(device, depthImage, nullptr);
     vkFreeMemory(device, depthImageMemory, nullptr);
