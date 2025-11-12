@@ -204,7 +204,7 @@ public:
 
 private:
     // --- Camera state ---
-    glm::vec3 camPos{ 0.0f, 1.0f, 2.0f };
+    glm::vec3 camPos{ 2.0f, 0.0f, 5.0f };
     float yaw = -90.0f;   // looking toward -Z initially
     float pitch = 0.0f;
     float moveSpeed = 2.5f; // units per second
