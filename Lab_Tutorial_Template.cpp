@@ -115,7 +115,7 @@ struct PushConstants {
     uint32_t  _pad1;         // 4   -> total 80 bytes
 };
 
-auto faceUV = [&](float S, glm::vec2 uv) { return uv; };
+auto faceUV = [](float S, glm::vec2 uv) { return uv; };
 std::vector<Vertex> cubeVertices = {
     // Front (+Z)
     {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1}), {1,0,0}, {0,1,0}},
@@ -167,10 +167,11 @@ std::vector<Vertex> cubeVertices = {
 };
 
 // --- Forward declarations of Vulkan helpers ---
-VkResult CreateDebugUtilsMessengerEXT(
-    VkInstance, const VkDebugUtilsMessengerCreateInfoEXT*,
-    const VkAllocationCallbacks*, VkDebugUtilsMessengerEXT*);
-void DestroyDebugUtilsMessengerEXT(VkInstance, VkDebugUtilsMessengerEXT, const VkAllocationCallbacks*);
+// VkResult CreateDebugUtilsMessengerEXT(
+//     VkInstance, const VkDebugUtilsMessengerCreateInfoEXT*,
+//     const VkAllocationCallbacks*, VkDebugUtilsMessengerEXT*);
+    
+// void DestroyDebugUtilsMessengerEXT(VkInstance, VkDebugUtilsMessengerEXT, const VkAllocationCallbacks*);
 // ---- Debug utils loader helpers (define these in your .cpp) ----
 static VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance,
@@ -524,7 +525,6 @@ void HelloTriangleApplication::cleanup() {
 }
 
 // --- Vulkan setup (mostly identical to your version) -----------------------
-
 void HelloTriangleApplication::createInstance() {
     if (enableValidationLayers && !checkValidationLayerSupport())
         throw std::runtime_error("Validation layers requested, but not available!");
@@ -545,6 +545,11 @@ void HelloTriangleApplication::createInstance() {
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
+#ifdef __APPLE__
+    // Needed so MoltenVK gets enumerated as a portability driver
+    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     if (enableValidationLayers) {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
@@ -560,6 +565,7 @@ void HelloTriangleApplication::createInstance() {
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
         throw std::runtime_error("Failed to create instance!");
 }
+
 
 void HelloTriangleApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& ci) {
     ci = {};
@@ -598,10 +604,22 @@ bool HelloTriangleApplication::checkValidationLayerSupport() {
 std::vector<const char*> HelloTriangleApplication::getRequiredExtensions() {
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-    if (enableValidationLayers) extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
+    if (enableValidationLayers) {
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+
+    // --- macOS / MoltenVK portability requirement ---
+#ifdef __APPLE__
+    // Needed so the loader actually exposes MoltenVK as a driver
+    extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+#endif
+
     return extensions;
 }
+
 VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,
     VkDebugUtilsMessageTypeFlagsEXT type,
