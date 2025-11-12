@@ -103,12 +103,92 @@ sce
 ### EXERCISE 3:  
 
 **Solution:** 
+I fixed it by splitting the rendering into two pipelines and making small shader changes so the skybox and the
+reflective cube no longer fight over depth and face orientation. The skybox pipeline turns off depth writes and
+culls the cube interior correctly so you see the inside of the big box. The reflective pipeline writes depth and
+uses the usual back face cull so the mesh stays solid. In the shaders I added a push constant flag to switch
+between an unlit skybox path that removes the camera translation and a reflective path for the cube. With these
+changes both objects render every frame.
+
+- Pipeline States:
+
+```cpp
+// skybox: see interior faces and do not write depth
+VkPipelineRasterizationStateCreateInfo rsSky = rsCommon;
+rsSky.cullMode = VK_CULL_MODE_FRONT_BIT;   // or VK_CULL_MODE_NONE
+VkPipelineDepthStencilStateCreateInfo dzSky{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+dzSky.depthTestEnable  = VK_TRUE;
+dzSky.depthWriteEnable = VK_FALSE;
+dzSky.depthCompareOp   = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+// reflective mesh: solid geometry with depth writes
+VkPipelineRasterizationStateCreateInfo rsRefl = rsCommon;
+rsRefl.cullMode = VK_CULL_MODE_BACK_BIT;
+VkPipelineDepthStencilStateCreateInfo dzRefl{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+dzRefl.depthTestEnable  = VK_TRUE;
+dzRefl.depthWriteEnable = VK_TRUE;
+dzRefl.depthCompareOp   = VK_COMPARE_OP_LESS_OR_EQUAL;
+````
+
+- Fragment Shader:
+
+```cpp
+void main() {
+    if (pc.unlit != 0u) {
+        vec3 dir = normalize(vDir);
+        vec3 col = texture(uSky, dir).rgb;
+        outColor = vec4(pow(col, vec3(1.0 / 2.2)), 1.0);
+        return;
+    }
+
+    vec3 N = normalize(vWorldNormal);
+    vec3 V = normalize(ubo.eyePos.xyz - vWorldPos);
+    vec3 R = reflect(-V, N);
+    vec3 col = texture(uSky, R).rgb;
+
+    float F0 = 0.04;
+    float F = F0 + (1.0 - F0) * pow(clamp(1.0 - dot(N, V), 0.0, 1.0), 5.0);
+    col = mix(col * 0.8, col, F);
+
+    outColor = vec4(pow(col, vec3(1.0 / 2.2)), 1.0);
+}
+```
+
+- Vertex Shader:
+
+```cpp
+void main() {
+    mat4 M = (pc.useOverride != 0u) ? pc.modelOverride : ubo.model;
+
+    vec4 world = M * vec4(inPos, 1.0);
+    vWorldPos = world.xyz;
+    vWorldNormal = normalize(mat3(M) * inNormal);
+
+    mat4 V = ubo.view;
+    if (pc.unlit != 0u) {
+        // Skybox: no translation, depth at far plane
+        mat4 Vsky = V;
+        Vsky[3] = vec4(0.0, 0.0, 0.0, 1.0);
+        vDir = mat3(inverse(Vsky)) * world.xyz;
+        vec4 clip = ubo.proj * Vsky * vec4(world.xyz, 1.0);
+        gl_Position = vec4(clip.xy, clip.w, clip.w);
+    } else {
+        // Meshes: full view matrix, normal depth
+        vDir = mat3(inverse(V)) * world.xyz;
+        gl_Position = ubo.proj * V * vec4(world.xyz, 1.0);
+    }
+}
+```
 
 **Output:**
-
+![](images/ex3.png)
 
 **Reflection:**
-
+Working through this exercise is reinforcing that I need to make my code more modular. As this would make it easier
+to add features like multiple pipelines without having to rewrite large sections of code. I was able to complete
+this exercise without having to completely refactor, but for future projects I plan on investing time into building
+a more flexible rendering architecture from the start. This will help me avoid issues where different objects 
+compete for the same pipeline settings.
 
 ---
 
