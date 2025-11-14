@@ -166,9 +166,11 @@ void HelloTriangleApplication::createTextureImageView2() {
 **Output:**
 
 - Normal Mapping Effect:
-![](Images/ex2_1)
+
+![](Images/ex2_1.png)
 
 - Enhanced Detail:
+
 ![](Images/ex2_2)
 
 **Reflection:**
@@ -230,14 +232,15 @@ combined image sampler and kept the same descriptor layout so that the fragment 
 
 - Bumpier Surface:
 
-![](Images/ex3_bumpy)
+![](Images/ex3_bumpy.png)
 
 - Flat Surface:
 
-![](Images/ex3_flat))
+![](Images/ex3_flat.png)
 
 - Height Map:
-![](Images/ex3_gray)
+
+![](Images/ex3_gray.png)
 
 
 **Reflection:**
@@ -312,7 +315,7 @@ void main()
 
 **Output:**
 
-![](Images/ex4)
+![](Images/ex4.png)
 
 **Reflection:**
 Initially, the cube appeared flat and featureless because the pattern derived from UV coordinates wasn’t varying enough 
