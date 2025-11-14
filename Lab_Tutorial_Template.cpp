@@ -208,6 +208,8 @@ private:
     glm::vec3 camPos{ 2.0f, 0.0f, 5.0f };
     float yaw = -90.0f;   // looking toward -Z initially
     float pitch = 0.0f;
+	float radius = 5.0f;
+
     float moveSpeed = 2.5f; // units per second
     float turnSpeed = 90.0f; // degrees per second
 
@@ -368,37 +370,35 @@ private:
 
 // --- Implementation --------------------------------------------------------
 void HelloTriangleApplication::handleInput(float dt) {
-    // Compute basis from yaw/pitch
-    glm::vec3 front{
-        cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
-        sin(glm::radians(pitch)),
-        sin(glm::radians(yaw)) * cos(glm::radians(pitch))
-    };
-    front = glm::normalize(front);
-    const glm::vec3 worldUp{ 0.0f, 1.0f, 0.0f };
-    glm::vec3 right = glm::normalize(glm::cross(front, worldUp));
-    glm::vec3 up = glm::normalize(glm::cross(right, front));
+    // Rotate around the cube with arrow keys
+    float yawDelta = turnSpeed * dt;
+    float pitchDelta = turnSpeed * dt;
 
-    float speed = moveSpeed * dt;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) speed *= 3.0f; // sprint
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) yaw -= yawDelta;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yaw += yawDelta;
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) pitch += pitchDelta;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) pitch -= pitchDelta;
 
-    // Translate
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camPos += front * speed;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camPos -= front * speed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camPos += right * speed;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camPos -= right * speed;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camPos += up * speed;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camPos -= up * speed;
-
-    // Rotate with arrow keys
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  yaw -= turnSpeed * dt;
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)  yaw += turnSpeed * dt;
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)  pitch += turnSpeed * dt;
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  pitch -= turnSpeed * dt;
-
-    // Clamp pitch to avoid gimbal flip
+    // Clamp pitch to avoid flipping over the top
     pitch = std::clamp(pitch, -89.0f, 89.0f);
+
+    // Zoom in/out with W/S (or Q/E if you prefer)
+    float zoomSpeed = moveSpeed * dt;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) radius -= zoomSpeed;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) radius += zoomSpeed;
+
+    // Keep radius in a sensible range
+    radius = std::clamp(radius, 1.5f, 20.0f);
+
+    // Convert spherical (radius, yaw, pitch) to Cartesian camPos
+    float yawRad = glm::radians(yaw);
+    float pitchRad = glm::radians(pitch);
+
+    camPos.x = radius * cosf(pitchRad) * cosf(yawRad);
+    camPos.y = radius * sinf(pitchRad);
+    camPos.z = radius * cosf(pitchRad) * sinf(yawRad);
 }
+
 
 void HelloTriangleApplication::run() {
     initWindow();
@@ -1350,35 +1350,32 @@ void HelloTriangleApplication::createSyncObjects() {
 }
 
 // --- Per-frame -------------------------------------------------------------
-
 void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     UniformBufferObject u{};
 
-    // Model can stay as you had it
+    // Keep your cube model transform (e.g., a slow spin)
     u.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
 
-    // Recompute front/up from current yaw/pitch
-    glm::vec3 front{
-        cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
-        sin(glm::radians(pitch)),
-        sin(glm::radians(yaw)) * cos(glm::radians(pitch))
-    };
-    front = glm::normalize(front);
-    const glm::vec3 worldUp{ 0.0f, 1.0f, 0.0f };
-    glm::vec3 right = glm::normalize(glm::cross(front, worldUp));
-    glm::vec3 up = glm::normalize(glm::cross(right, front));
+    // Target is the cube at the origin
+    glm::vec3 target(0.0f, 0.0f, 0.0f);
+    glm::vec3 up(0.0f, 1.0f, 0.0f);
 
-    u.view = glm::lookAt(camPos, camPos + front, up);
+    // Use camPos computed in handleInput
+    u.view = glm::lookAt(camPos, target, up);
+
+    // Same projection as before
     u.proj = glm::perspective(glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 100.0f);
     u.proj[1][1] *= -1;
 
-    u.lightPos = glm::vec3(2.0f, 2.0f, 2.0f); // as before
+    // Keep your light and eyePos
+    u.lightPos = glm::vec3(2.0f, 2.0f, 2.0f);
     u.eyePos = camPos;
 
     memcpy(uniformBuffersMapped[frame], &u, sizeof(u));
 }
+
 
 
 void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageIndex) {
