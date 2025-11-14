@@ -1,6 +1,6 @@
 #version 450
 
-layout(location = 0) in vec3 inParticlePos; // x,y = center, z = id/seed
+layout(location = 0) in vec3 inParticlePos; // x,z = base offset on emitter, z = seed
 layout(location = 1) in vec2 inCorner;      // (-1,-1..1,1)
 
 layout(location = 0) out vec2 texCoord;
@@ -15,19 +15,37 @@ layout(set = 0, binding = 0) uniform UBO {
     float time;
 } ubo;
 
-#define particleSpeed 0.48
-#define particleSpread 20.48
-#define particleSize 6.0
+// Tunables for the smoke motion
+const float particleSpeed = 0.4;
+const float emitterHeight = 0.5;   // top face of cube (cube is [-0.5,0.5])
+const float maxRise       = 4.0;   // how high the smoke goes
+const float baseRadius    = 0.35;  // how wide the column gets
+const float particleSize  = 0.25;  // quad size
 
 void main() {
-    float id = inParticlePos.z;
-    t = fract(id + particleSpeed * ubo.time);
+    // Seed for this particle
+    float seed = inParticlePos.z;
+
+    // Normalised life time in [0,1], looping over time
+    t = fract(ubo.time * particleSpeed + seed);
+
+    // Vertical motion
+    float rise = maxRise * t;
+
+    // A bit of swirling as it goes up
+    float swirlPhase  = seed * 6.2831853 + t * 3.0;
+    float swirlRadius = baseRadius * t;
+
+    // Emitter is the centre of the top face of the cube
+    vec3 emitter = vec3(0.0, emitterHeight, 0.0);
 
     vec3 pos;
-    pos.x = particleSpread * t * cos(50.0 * id);
-    pos.y = particleSpread * t * 0.02;
-    pos.z = particleSpread * t * sin(120.0 * id);
+    // Use inParticlePos.x as local x offset, inParticlePos.y as local z offset
+    pos.x = emitter.x + inParticlePos.x + cos(swirlPhase) * swirlRadius;
+    pos.z = emitter.z + inParticlePos.y + sin(swirlPhase) * swirlRadius;
+    pos.y = emitter.y + rise;
 
+    // Camera-facing quad (billboard)
     mat4 viewInv = inverse(ubo.view);
     vec3 right = viewInv[0].xyz;
     vec3 up    = viewInv[1].xyz;

@@ -96,6 +96,18 @@
       <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib32;$(VULKAN_SDK)\Bin32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
+    <PreBuildEvent>
+      <Command>REM --------------------------------------------------
+REM Compile ONLY particle shaders before build
+REM --------------------------------------------------
+
+REM Particle vertex shader
+"%VULKAN_SDK%\Bin\glslc.exe" "$(ProjectDir)shaders\particle.vert" -o "$(ProjectDir)shaders\particle.vert.spv"
+
+REM Particle fragment shader
+"%VULKAN_SDK%\Bin\glslc.exe" "$(ProjectDir)shaders\particle.frag" -o "$(ProjectDir)shaders\particle.frag.spv"
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -120,6 +132,18 @@
     <Bscmake>
       <PreserveSbr>true</PreserveSbr>
     </Bscmake>
+    <PreBuildEvent>
+      <Command>REM --------------------------------------------------
+REM Compile ONLY particle shaders before build
+REM --------------------------------------------------
+
+REM Particle vertex shader
+"%VULKAN_SDK%\Bin\glslc.exe" "$(ProjectDir)shaders\particle.vert" -o "$(ProjectDir)shaders\particle.vert.spv"
+
+REM Particle fragment shader
+"%VULKAN_SDK%\Bin\glslc.exe" "$(ProjectDir)shaders\particle.frag" -o "$(ProjectDir)shaders\particle.frag.spv"
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -141,6 +165,18 @@
       <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib32;$(VULKAN_SDK)\Bin32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
+    <PreBuildEvent>
+      <Command>REM --------------------------------------------------
+REM Compile ONLY particle shaders before build
+REM --------------------------------------------------
+
+REM Particle vertex shader
+"%VULKAN_SDK%\Bin\glslc.exe" "$(ProjectDir)shaders\particle.vert" -o "$(ProjectDir)shaders\particle.vert.spv"
+
+REM Particle fragment shader
+"%VULKAN_SDK%\Bin\glslc.exe" "$(ProjectDir)shaders\particle.frag" -o "$(ProjectDir)shaders\particle.frag.spv"
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -162,6 +198,18 @@
       <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib;$(VULKAN_SDK)\Bin;%(AdditionalLibraryDirectories);C:\Users\984381\source\repos\ChubieMirembe\RTG\Dependencies\GLFW\lib-vc2022</AdditionalLibraryDirectories>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
+    <PreBuildEvent>
+      <Command>REM --------------------------------------------------
+REM Compile ONLY particle shaders before build
+REM --------------------------------------------------
+
+REM Particle vertex shader
+"%VULKAN_SDK%\Bin\glslc.exe" "$(ProjectDir)shaders\particle.vert" -o "$(ProjectDir)shaders\particle.vert.spv"
+
+REM Particle fragment shader
+"%VULKAN_SDK%\Bin\glslc.exe" "$(ProjectDir)shaders\particle.frag" -o "$(ProjectDir)shaders\particle.frag.spv"
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Lab_Tutorial_Template.cpp" />
@@ -181,15 +229,42 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-    <CustomBuild Include="particle.frag" />
-    <CustomBuild Include="particle.vert" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="Dependencies\STB\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="x64\Debug\wall.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="SHADERS\particle.frag">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(VULKAN_SDK)\Bin\glslc.exe" "%(FullPath)" -o "$(ProjectDir)shaders\%(Filename).spv"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)shaders\%(Filename).spv;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(VULKAN_SDK)\Bin\glslc.exe" "%(FullPath)" -o "$(ProjectDir)shaders\%(Filename).spv"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)shaders\%(Filename).spv;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(VULKAN_SDK)\Bin\glslc.exe" "%(FullPath)" -o "$(ProjectDir)shaders\%(Filename).spv"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)shaders\%(Filename).spv;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(VULKAN_SDK)\Bin\glslc.exe" "%(FullPath)" -o "$(ProjectDir)shaders\%(Filename).spv"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)shaders\%(Filename).spv;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="SHADERS\particle.vert">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(VULKAN_SDK)\Bin\glslc.exe" "%(FullPath)" -o "$(ProjectDir)shaders\%(Filename).spv"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)shaders\%(Filename).spv;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(VULKAN_SDK)\Bin\glslc.exe" "%(FullPath)" -o "$(ProjectDir)shaders\%(Filename).spv"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)shaders\%(Filename).spv;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(VULKAN_SDK)\Bin\glslc.exe" "%(FullPath)" -o "$(ProjectDir)shaders\%(Filename).spv"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)shaders\%(Filename).spv;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(VULKAN_SDK)\Bin\glslc.exe" "%(FullPath)" -o "$(ProjectDir)shaders\%(Filename).spv"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)shaders\%(Filename).spv;%(Outputs)</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
