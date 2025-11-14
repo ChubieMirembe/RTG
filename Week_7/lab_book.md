@@ -171,7 +171,7 @@ void HelloTriangleApplication::createTextureImageView2() {
 
 - Enhanced Detail:
 
-![](Images/ex2_2)
+![](Images/ex2_2.png)
 
 **Reflection:**
 This exercise helped me understand how tangent space normal mapping works and why it is needed for realistic 
