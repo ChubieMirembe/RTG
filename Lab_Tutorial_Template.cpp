@@ -115,95 +115,14 @@ struct PushConstants {
     uint32_t  _pad1;         // 4   -> total 80 bytes
 };
 
-auto faceUV = [](float S, glm::vec2 uv) { return uv; };
-std::vector<Vertex> cubeVertices = {
-    // Front (+Z)
-    {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1}), {1,0,0}, {0,1,0}},
-    {{ 0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,1}), {1,0,0}, {0,1,0}},
-    {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0}), {1,0,0}, {0,1,0}},
-    {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0}), {1,0,0}, {0,1,0}},
-    {{-0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,0}), {1,0,0}, {0,1,0}},
-    {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1}), {1,0,0}, {0,1,0}},
-
-    // Back (−Z)
-    {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1}), {-1,0,0}, {0,1,0}},
-    {{-0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,1}), {-1,0,0}, {0,1,0}},
-    {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0}), {-1,0,0}, {0,1,0}},
-    {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0}), {-1,0,0}, {0,1,0}},
-    {{ 0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,0}), {-1,0,0}, {0,1,0}},
-    {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1}), {-1,0,0}, {0,1,0}},
-
-    // Left (−X)
-    {{-0.5f,-0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,1}), {0,0,1}, {0,1,0}},
-    {{-0.5f,-0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,1}), {0,0,1}, {0,1,0}},
-    {{-0.5f, 0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,0}), {0,0,1}, {0,1,0}},
-    {{-0.5f, 0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,0}), {0,0,1}, {0,1,0}},
-    {{-0.5f, 0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,0}), {0,0,1}, {0,1,0}},
-    {{-0.5f,-0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,1}), {0,0,1}, {0,1,0}},
-
-    // Right (+X)
-    {{ 0.5f,-0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,1}), {0,0,-1}, {0,1,0}},
-    {{ 0.5f,-0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,1}), {0,0,-1}, {0,1,0}},
-    {{ 0.5f, 0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,0}), {0,0,-1}, {0,1,0}},
-    {{ 0.5f, 0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,0}), {0,0,-1}, {0,1,0}},
-    {{ 0.5f, 0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,0}), {0,0,-1}, {0,1,0}},
-    {{ 0.5f,-0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,1}), {0,0,-1}, {0,1,0}},
-
-    // Top (+Y)
-    {{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1}), {1,0,0}, {0,0,-1}},
-    {{ 0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,1}), {1,0,0}, {0,0,-1}},
-    {{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0}), {1,0,0}, {0,0,-1}},
-    {{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0}), {1,0,0}, {0,0,-1}},
-    {{-0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,0}), {1,0,0}, {0,0,-1}},
-    {{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1}), {1,0,0}, {0,0,-1}},
-
-    // Bottom (−Y)
-    {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1}), {1,0,0}, {0,0,1}},
-    {{ 0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,1}), {1,0,0}, {0,0,1}},
-    {{ 0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,0}), {1,0,0}, {0,0,1}},
-    {{ 0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,0}), {1,0,0}, {0,0,1}},
-    {{-0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,0}), {1,0,0}, {0,0,1}},
-    {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1}), {1,0,0}, {0,0,1}},
-};
-
-// --- Forward declarations of Vulkan helpers ---
-// VkResult CreateDebugUtilsMessengerEXT(
-//     VkInstance, const VkDebugUtilsMessengerCreateInfoEXT*,
-//     const VkAllocationCallbacks*, VkDebugUtilsMessengerEXT*);
-    
-// void DestroyDebugUtilsMessengerEXT(VkInstance, VkDebugUtilsMessengerEXT, const VkAllocationCallbacks*);
-// ---- Debug utils loader helpers (define these in your .cpp) ----
-static VkResult CreateDebugUtilsMessengerEXT(
-    VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-    const VkAllocationCallbacks* pAllocator,
-    VkDebugUtilsMessengerEXT* pDebugMessenger)
-{
-    auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-        vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
-    if (func) {
-        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-    }
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-}
-
-static void DestroyDebugUtilsMessengerEXT(
-    VkInstance instance,
-    VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks* pAllocator)
-{
-    auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-        vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
-    if (func) {
-        func(instance, debugMessenger, pAllocator);
-    }
-}
-
 class HelloTriangleApplication {
 public:
     void run();
 
 private:
+    // --- Static Model Data ---
+    static std::vector<Vertex> getCubeVertices();
+    
     // --- Camera state ---
     glm::vec3 camPos{ 2.0f, 0.0f, 5.0f };
     float yaw = -90.0f;   // looking toward -Z initially
@@ -358,6 +277,10 @@ private:
         VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t w, uint32_t h);
 
+    // --- Static Helper Functions ---
+    static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
+    static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
+
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -367,6 +290,87 @@ private:
 };
 
 // --- Implementation --------------------------------------------------------
+
+// --- Static helper functions ---
+VkResult HelloTriangleApplication::CreateDebugUtilsMessengerEXT(
+    VkInstance instance,
+    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkDebugUtilsMessengerEXT* pDebugMessenger)
+{
+    auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+    if (func) {
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    }
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+
+void HelloTriangleApplication::DestroyDebugUtilsMessengerEXT(
+    VkInstance instance,
+    VkDebugUtilsMessengerEXT debugMessenger,
+    const VkAllocationCallbacks* pAllocator)
+{
+    auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
+    if (func) {
+        func(instance, debugMessenger, pAllocator);
+    }
+}
+
+std::vector<Vertex> HelloTriangleApplication::getCubeVertices() {
+    auto faceUV = [](float S, glm::vec2 uv) { return uv; };
+    return {
+        // Front (+Z)
+        {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1}), {1,0,0}, {0,1,0}},
+        {{ 0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,1}), {1,0,0}, {0,1,0}},
+        {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0}), {1,0,0}, {0,1,0}},
+        {{ 0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{1,0}), {1,0,0}, {0,1,0}},
+        {{-0.5f, 0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,0}), {1,0,0}, {0,1,0}},
+        {{-0.5f,-0.5f,  0.5f}, {1,0,0}, {0,0, 1}, faceUV(1.0f,{0,1}), {1,0,0}, {0,1,0}},
+
+        // Back (−Z)
+        {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1}), {-1,0,0}, {0,1,0}},
+        {{-0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,1}), {-1,0,0}, {0,1,0}},
+        {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0}), {-1,0,0}, {0,1,0}},
+        {{-0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{1,0}), {-1,0,0}, {0,1,0}},
+        {{ 0.5f, 0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,0}), {-1,0,0}, {0,1,0}},
+        {{ 0.5f,-0.5f, -0.5f}, {0,1,0}, {0,0,-1}, faceUV(2.0f,{0,1}), {-1,0,0}, {0,1,0}},
+
+        // Left (−X)
+        {{-0.5f,-0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,1}), {0,0,1}, {0,1,0}},
+        {{-0.5f,-0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,1}), {0,0,1}, {0,1,0}},
+        {{-0.5f, 0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,0}), {0,0,1}, {0,1,0}},
+        {{-0.5f, 0.5f,  0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{1,0}), {0,0,1}, {0,1,0}},
+        {{-0.5f, 0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,0}), {0,0,1}, {0,1,0}},
+        {{-0.5f,-0.5f, -0.5f}, {0,0,1}, {-1,0,0}, faceUV(3.0f,{0,1}), {0,0,1}, {0,1,0}},
+
+        // Right (+X)
+        {{ 0.5f,-0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,1}), {0,0,-1}, {0,1,0}},
+        {{ 0.5f,-0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,1}), {0,0,-1}, {0,1,0}},
+        {{ 0.5f, 0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,0}), {0,0,-1}, {0,1,0}},
+        {{ 0.5f, 0.5f, -0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{1,0}), {0,0,-1}, {0,1,0}},
+        {{ 0.5f, 0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,0}), {0,0,-1}, {0,1,0}},
+        {{ 0.5f,-0.5f,  0.5f}, {1,1,0}, {1,0,0}, faceUV(4.0f,{0,1}), {0,0,-1}, {0,1,0}},
+
+        // Top (+Y)
+        {{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1}), {1,0,0}, {0,0,-1}},
+        {{ 0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,1}), {1,0,0}, {0,0,-1}},
+        {{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0}), {1,0,0}, {0,0,-1}},
+        {{ 0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{1,0}), {1,0,0}, {0,0,-1}},
+        {{-0.5f, 0.5f, -0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,0}), {1,0,0}, {0,0,-1}},
+        {{-0.5f, 0.5f,  0.5f}, {1,0,1}, {0,1,0}, faceUV(5.0f,{0,1}), {1,0,0}, {0,0,-1}},
+
+        // Bottom (−Y)
+        {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1}), {1,0,0}, {0,0,1}},
+        {{ 0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,1}), {1,0,0}, {0,0,1}},
+        {{ 0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,0}), {1,0,0}, {0,0,1}},
+        {{ 0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{1,0}), {1,0,0}, {0,0,1}},
+        {{-0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,0}), {1,0,0}, {0,0,1}},
+        {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1}), {1,0,0}, {0,0,1}},
+    };
+}
+
 void HelloTriangleApplication::handleInput(float dt) {
     // Compute basis from yaw/pitch
     glm::vec3 front{
@@ -1213,6 +1217,8 @@ void HelloTriangleApplication::createTextureSampler3() {
 
 // --- Vertex buffers for cube and sphere ------------------------------------
 void HelloTriangleApplication::createVertexBuffers() {
+    auto cubeVertices = getCubeVertices();
+    
     auto makeVB = [&](const std::vector<Vertex>& verts, VkBuffer& buf, VkDeviceMemory& mem) {
         VkDeviceSize size = sizeof(Vertex) * verts.size();
         VkBuffer staging; VkDeviceMemory stagingMem;
@@ -1452,7 +1458,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         0, (uint32_t)sizeof(PushConstants), &sky);
 
-    vkCmdDraw(cb, (uint32_t)cubeVertices.size(), 1, 0, 0);
+    vkCmdDraw(cb, (uint32_t)getCubeVertices().size(), 1, 0, 0);
 
     // 2) draw reflective cube
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, reflectPipeline);
@@ -1463,7 +1469,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         0, (uint32_t)sizeof(PushConstants), &refl);
 
-    vkCmdDraw(cb, (uint32_t)cubeVertices.size(), 1, 0, 0);
+    vkCmdDraw(cb, (uint32_t)getCubeVertices().size(), 1, 0, 0);
 
     vkCmdEndRendering(cb);
 
