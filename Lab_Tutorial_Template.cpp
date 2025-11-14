@@ -203,9 +203,9 @@ std::vector<ParticleVertex> particleVertices;
 static void buildParticles() {
     particleVertices.clear();
 
-    const int slices = 50;
-    const float zStart = 0.0f;
-    const float zEnd = 1.0f;
+    const int   particleCount = 50;   // how many quads
+    const float emitterRadius = 0.25f; // disc radius on the cube top
+    const float cubeTopY = 0.5f;  // cube is [-0.5,0.5] so top is 0.5
 
     const glm::vec2 corners[4] = {
         {-1.0f, -1.0f},
@@ -214,17 +214,29 @@ static void buildParticles() {
         {-1.0f,  1.0f},
     };
 
-    for (int i = 0; i < slices; ++i) {
-        float z = glm::mix(zStart, zEnd, i / float(slices));
+    for (int i = 0; i < particleCount; ++i) {
+        float seed = i / float(particleCount);  // 0..1 – becomes inParticlePos.z
 
+        // Place particle somewhere on a disc on the top face
+        float angle = seed * glm::two_pi<float>();
+        float radialBias = glm::sqrt(seed);     // more towards centre
+        float x = emitterRadius * radialBias * std::cos(angle);
+        float z = emitterRadius * radialBias * std::sin(angle);
+        float y = cubeTopY;
+
+        glm::vec3 basePos(x, y, seed);
+
+        // One quad = 4 vertices with same basePos but different corners
         for (int c = 0; c < 4; ++c) {
             ParticleVertex v{};
-            v.particlePos = glm::vec3(0.0f, 0.0f, z);
+            v.particlePos = basePos;
             v.corner = corners[c];
             particleVertices.push_back(v);
         }
     }
 }
+
+
 
 // ---- Debug utils loader helpers ----
 static VkResult CreateDebugUtilsMessengerEXT(
