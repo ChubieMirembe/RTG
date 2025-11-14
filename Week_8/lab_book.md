@@ -252,6 +252,26 @@ cba.dstAlphaBlendFactor = VK_ONE_MINUS_SRC_ALPHA;
 cba.alphaBlendOp        = VK_BLEND_OP_ADD;
 
 ```
+- Refractive Pipeline Creation:
+
+```cpp
+VkPipelineRasterizationStateCreateInfo rsRefract = rsCommon;
+rsRefract.cullMode = VK_CULL_MODE_BACK_BIT;
+
+VkPipelineDepthStencilStateCreateInfo dzRefract{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+dzRefract.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
+dzRefract.depthWriteEnable = VK_TRUE;              // one transparent object -> fine
+dzRefract.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+gps[1] = gps[0];
+gps[1].pRasterizationState = &rsRefract;
+gps[1].pDepthStencilState = &dzRefract;
+gps[1].pColorBlendState = &cbRefract;           
+
+if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gps[1], nullptr, &reflectPipeline) != VK_SUCCESS) {
+    throw std::runtime_error("Failed to create refractive pipeline!");
+}
+```
 **Output:**
 ![](images/ex4.png)
 

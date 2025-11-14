@@ -182,6 +182,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <CustomBuild Include="particle.frag" />
+    <CustomBuild Include="particle.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\STB\stb_image.h" />

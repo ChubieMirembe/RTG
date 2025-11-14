@@ -98,6 +98,37 @@ struct Vertex {
     }
 };
 
+struct ParticleVertex {
+    glm::vec3 particlePos;  // x,y = base center, z = particle id / seed
+    glm::vec2 corner;       // quad corner offset, e.g. (-1,-1), (1,1)
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription b{};
+        b.binding = 1;  // use binding 1 for particles (cube is binding 0)
+        b.stride = sizeof(ParticleVertex);
+        b.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        return b;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 2> a{};
+
+        // location 0: inParticlePos
+        a[0].location = 0;
+        a[0].binding = 1;
+        a[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        a[0].offset = offsetof(ParticleVertex, particlePos);
+
+        // location 1: inCorner / texCoord
+        a[1].location = 1;
+        a[1].binding = 1;
+        a[1].format = VK_FORMAT_R32G32_SFLOAT;
+        a[1].offset = offsetof(ParticleVertex, corner);
+
+        return a;
+    }
+};
+
 
 struct UniformBufferObject {
     alignas(16) glm::mat4 model;
@@ -105,6 +136,7 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
     alignas(16) glm::vec3 lightPos;
     alignas(16) glm::vec3 eyePos;
+	alignas(16) float     time;
 };
 
 struct PushConstants {
@@ -165,6 +197,34 @@ std::vector<Vertex> cubeVertices = {
     {{-0.5f,-0.5f,  0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,0}), {1,0,0}, {0,0,1}},
     {{-0.5f,-0.5f, -0.5f}, {0,1,1}, {0,-1,0}, faceUV(6.0f,{0,1}), {1,0,0}, {0,0,1}},
 };
+
+std::vector<ParticleVertex> particleVertices;
+
+static void buildParticles() {
+	particleVertices.clear();
+
+    const int slices = 200;
+	const float zStart = 0.0f;
+	const float zEnd = 1.0f;
+
+    const glm::vec2 corners[4] = {
+        {-1.0f, -1.0f},
+        { 1.0f, -1.0f},
+        { 1.0f,  1.0f},
+        {-1.0f,  1.0f},
+	};
+
+    for(int i = 0; i < slices; ++i) {
+		float z = glm::mix(zStart, zEnd, i / float(slices));
+        
+        for (int c = 0; c < 4; ++c) {
+            ParticleVertex v{};
+            v.particlePos = glm::vec3(0.0f, 0.0f, z);
+            v.corner = corners[c];
+            particleVertices.push_back(v);
+        }
+	}
+}
 
 // --- Forward declarations of Vulkan helpers ---
 // VkResult CreateDebugUtilsMessengerEXT(
@@ -247,7 +307,7 @@ private:
     VkPipeline graphicsPipeline = VK_NULL_HANDLE;
     VkPipeline skyboxPipeline = VK_NULL_HANDLE;
     VkPipeline reflectPipeline = VK_NULL_HANDLE;
-
+	VkPipeline particlePipeline = VK_NULL_HANDLE;
 
     // Texture
     VkImage textureImage = VK_NULL_HANDLE;
@@ -275,6 +335,10 @@ private:
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
+
+    VkBuffer particleVertexBuffer = VK_NULL_HANDLE;       
+    VkDeviceMemory particleVertexBufferMemory = VK_NULL_HANDLE;
+    uint32_t particleVertexCount = 0;
 
     // Descriptors
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
@@ -445,7 +509,7 @@ void HelloTriangleApplication::initVulkan() {
 
 
     STEP("build geometry");
-
+	STEP("buildParticles");   buildParticles();
     STEP("createVertexBuffers");
     createVertexBuffers();
 
@@ -498,6 +562,12 @@ void HelloTriangleApplication::cleanup() {
         vkDestroyBuffer(device, cubeVertexBuffer, nullptr);
         vkFreeMemory(device, cubeVertexBufferMemory, nullptr);
     }
+
+    if (particleVertexBuffer) {
+        vkDestroyBuffer(device, particleVertexBuffer, nullptr);
+        vkFreeMemory(device, particleVertexBufferMemory, nullptr);
+    }
+
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyBuffer(device, uniformBuffers[i], nullptr);
@@ -878,8 +948,8 @@ void HelloTriangleApplication::createDescriptorSetLayout() {
     }
 }
 
-
 void HelloTriangleApplication::createGraphicsPipeline() {
+    // --- Main cube/skybox shaders ---
     auto vertShaderCode = readFile("shaders/vert.spv");
     auto fragShaderCode = readFile("shaders/frag.spv");
     VkShaderModule vs = createShaderModule(vertShaderCode);
@@ -896,6 +966,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     stages[1].module = fs;
     stages[1].pName = "main";
 
+    // --- Vertex layout for cube/skybox ---
     auto bindDesc = Vertex::getBindingDescription();
     auto attrDesc = Vertex::getAttributeDescriptions();
 
@@ -915,7 +986,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     VkPipelineRasterizationStateCreateInfo rsCommon{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
     rsCommon.polygonMode = VK_POLYGON_MODE_FILL;
     rsCommon.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rsCommon.cullMode = VK_CULL_MODE_BACK_BIT;  // default, we override per-pipeline
+    rsCommon.cullMode = VK_CULL_MODE_BACK_BIT;  // default, overridden per-pipeline
     rsCommon.lineWidth = 1.0f;
 
     VkPipelineMultisampleStateCreateInfo ms{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
@@ -932,7 +1003,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
         VK_COLOR_COMPONENT_A_BIT;
     cbaSky.blendEnable = VK_FALSE;
 
-    // Cube: alpha blending
+    // Refractive cube: alpha blending
     VkPipelineColorBlendAttachmentState cbaRefract = cbaSky;
     cbaRefract.blendEnable = VK_TRUE;
     cbaRefract.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -942,7 +1013,6 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     cbaRefract.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     cbaRefract.alphaBlendOp = VK_BLEND_OP_ADD;
 
-
     VkPipelineColorBlendStateCreateInfo cbSky{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
     cbSky.attachmentCount = 1;
     cbSky.pAttachments = &cbaSky;
@@ -951,6 +1021,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     cbRefract.attachmentCount = 1;
     cbRefract.pAttachments = &cbaRefract;
 
+    // --- Dynamic state (viewport/scissor) ---
     std::vector<VkDynamicState> dyn = {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR
@@ -959,11 +1030,13 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     ds.dynamicStateCount = static_cast<uint32_t>(dyn.size());
     ds.pDynamicStates = dyn.data();
 
+    // --- Push constants ---
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     pcr.offset = 0;
     pcr.size = sizeof(PushConstants);
 
+    // --- Pipeline layout (same for all three pipelines) ---
     VkPipelineLayoutCreateInfo pl{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pl.setLayoutCount = 1;
     pl.pSetLayouts = &descriptorSetLayout;
@@ -974,64 +1047,155 @@ void HelloTriangleApplication::createGraphicsPipeline() {
         throw std::runtime_error("Failed to create pipeline layout!");
     }
 
+    // --- Dynamic rendering info ---
     VkFormat depthFormat = findDepthFormat();
     VkPipelineRenderingCreateInfo rend{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
     rend.colorAttachmentCount = 1;
     rend.pColorAttachmentFormats = &swapChainImageFormat;
     rend.depthAttachmentFormat = depthFormat;
 
-    // ---- SKYBOX PIPELINE ----
+    // =====================================================
+    // 1) SKYBOX PIPELINE
+    // =====================================================
     VkPipelineRasterizationStateCreateInfo rsSky = rsCommon;
     rsSky.cullMode = VK_CULL_MODE_FRONT_BIT;  // draw inside faces for skybox
 
     VkPipelineDepthStencilStateCreateInfo dzSky{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
     dzSky.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
-    dzSky.depthWriteEnable = VK_FALSE;
+    dzSky.depthWriteEnable = VK_FALSE;                        // no depth writes
     dzSky.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
-    VkGraphicsPipelineCreateInfo gps[2]{};
+    VkGraphicsPipelineCreateInfo gpsSky{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    gpsSky.pNext = &rend;
+    gpsSky.stageCount = 2;
+    gpsSky.pStages = stages;
+    gpsSky.pVertexInputState = &vi;
+    gpsSky.pInputAssemblyState = &ia;
+    gpsSky.pViewportState = &vp;
+    gpsSky.pRasterizationState = &rsSky;
+    gpsSky.pMultisampleState = &ms;
+    gpsSky.pDepthStencilState = &dzSky;
+    gpsSky.pColorBlendState = &cbSky;
+    gpsSky.pDynamicState = &ds;
+    gpsSky.layout = pipelineLayout;
+    gpsSky.renderPass = VK_NULL_HANDLE;
+    gpsSky.subpass = 0;
 
-    gps[0].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    gps[0].pNext = &rend;
-    gps[0].stageCount = 2;
-    gps[0].pStages = stages;
-    gps[0].pVertexInputState = &vi;
-    gps[0].pInputAssemblyState = &ia;
-    gps[0].pViewportState = &vp;
-    gps[0].pRasterizationState = &rsSky;
-    gps[0].pMultisampleState = &ms;
-    gps[0].pColorBlendState = &cbSky;       // <--- opaque skybox
-    gps[0].pDynamicState = &ds;
-    gps[0].pDepthStencilState = &dzSky;
-    gps[0].layout = pipelineLayout;
-    gps[0].renderPass = VK_NULL_HANDLE;
-    gps[0].subpass = 0;
-
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gps[0], nullptr, &skyboxPipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gpsSky, nullptr, &skyboxPipeline) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create skybox pipeline!");
     }
 
-    // ---- REFRACTIVE CUBE PIPELINE ----
+    // =====================================================
+    // 2) REFRACTIVE / REFLECTIVE CUBE PIPELINE
+    // =====================================================
     VkPipelineRasterizationStateCreateInfo rsRefract = rsCommon;
     rsRefract.cullMode = VK_CULL_MODE_BACK_BIT;
 
     VkPipelineDepthStencilStateCreateInfo dzRefract{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
     dzRefract.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
-    dzRefract.depthWriteEnable = VK_TRUE;              // one transparent object -> fine
+    dzRefract.depthWriteEnable = VK_TRUE;                      // solid object
     dzRefract.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
-    gps[1] = gps[0];
-    gps[1].pRasterizationState = &rsRefract;
-    gps[1].pDepthStencilState = &dzRefract;
-    gps[1].pColorBlendState = &cbRefract;           // <--- alpha blending for cube
+    VkGraphicsPipelineCreateInfo gpsRefract = gpsSky;
+    gpsRefract.pRasterizationState = &rsRefract;
+    gpsRefract.pDepthStencilState = &dzRefract;
+    gpsRefract.pColorBlendState = &cbRefract;
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gps[1], nullptr, &reflectPipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gpsRefract, nullptr, &reflectPipeline) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create refractive pipeline!");
     }
 
+    // =====================================================
+    // 3) PARTICLE / SPRITE PIPELINE (NEW)
+    // =====================================================
+
+    // Separate shaders
+    auto particleVertCode = readFile("shaders/particle_vert.spv");
+    auto particleFragCode = readFile("shaders/particle_frag.spv");
+    VkShaderModule pvs = createShaderModule(particleVertCode);
+    VkShaderModule pfs = createShaderModule(particleFragCode);
+
+    VkPipelineShaderStageCreateInfo particleStages[2]{};
+    particleStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    particleStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    particleStages[0].module = pvs;
+    particleStages[0].pName = "main";
+
+    particleStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    particleStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    particleStages[1].module = pfs;
+    particleStages[1].pName = "main";
+
+    // Vertex layout for ParticleVertex
+    auto pBind = ParticleVertex::getBindingDescription();
+    auto pAttr = ParticleVertex::getAttributeDescriptions();
+
+    VkPipelineVertexInputStateCreateInfo viParticle{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+    viParticle.vertexBindingDescriptionCount = 1;
+    viParticle.pVertexBindingDescriptions = &pBind;
+    viParticle.vertexAttributeDescriptionCount = static_cast<uint32_t>(pAttr.size());
+    viParticle.pVertexAttributeDescriptions = pAttr.data();
+
+    // Depth: test on, no depth writes (particles over scene)
+    VkPipelineDepthStencilStateCreateInfo dzParticle{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    dzParticle.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
+    dzParticle.depthWriteEnable = VK_FALSE;
+    dzParticle.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+    // Blending: choose additive fire or alpha smoke
+    VkPipelineColorBlendAttachmentState cbaParticle{};
+    cbaParticle.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT |
+        VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT |
+        VK_COLOR_COMPONENT_A_BIT;
+    cbaParticle.blendEnable = VK_TRUE;
+
+    // Example: additive fire
+    cbaParticle.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    cbaParticle.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    cbaParticle.colorBlendOp = VK_BLEND_OP_ADD;
+    cbaParticle.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    cbaParticle.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    cbaParticle.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    // If you want smoke instead, swap dstColorBlendFactor to ONE_MINUS_SRC_ALPHA.
+
+    VkPipelineColorBlendStateCreateInfo cbParticle{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    cbParticle.attachmentCount = 1;
+    cbParticle.pAttachments = &cbaParticle;
+
+    // No culling for sprites
+    VkPipelineRasterizationStateCreateInfo rsParticle = rsCommon;
+    rsParticle.cullMode = VK_CULL_MODE_NONE;
+
+    VkGraphicsPipelineCreateInfo gpParticle{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    gpParticle.pNext = &rend;
+    gpParticle.stageCount = 2;
+    gpParticle.pStages = particleStages;
+    gpParticle.pVertexInputState = &viParticle;
+    gpParticle.pInputAssemblyState = &ia;
+    gpParticle.pViewportState = &vp;
+    gpParticle.pRasterizationState = &rsParticle;
+    gpParticle.pMultisampleState = &ms;
+    gpParticle.pDepthStencilState = &dzParticle;
+    gpParticle.pColorBlendState = &cbParticle;
+    gpParticle.pDynamicState = &ds;
+    gpParticle.layout = pipelineLayout;
+    gpParticle.renderPass = VK_NULL_HANDLE;
+    gpParticle.subpass = 0;
+
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gpParticle, nullptr, &particlePipeline) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create particle pipeline!");
+    }
+
+    // --- Destroy shader modules ---
+    vkDestroyShaderModule(device, pfs, nullptr);
+    vkDestroyShaderModule(device, pvs, nullptr);
     vkDestroyShaderModule(device, fs, nullptr);
     vkDestroyShaderModule(device, vs, nullptr);
 }
+
 
 
 
@@ -1252,25 +1416,41 @@ void HelloTriangleApplication::createTextureSampler3() {
 
 // --- Vertex buffers for cube and sphere ------------------------------------
 void HelloTriangleApplication::createVertexBuffers() {
-    auto makeVB = [&](const std::vector<Vertex>& verts, VkBuffer& buf, VkDeviceMemory& mem) {
-        VkDeviceSize size = sizeof(Vertex) * verts.size();
-        VkBuffer staging; VkDeviceMemory stagingMem;
-        createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            staging, stagingMem);
-        void* data; vkMapMemory(device, stagingMem, 0, size, 0, &data);
-        memcpy(data, verts.data(), (size_t)size);
-        vkUnmapMemory(device, stagingMem);
+    auto makeVB = [&](VkDeviceSize size,
+        const void* src,
+        VkBuffer& buf,
+        VkDeviceMemory& mem) {
+            VkBuffer staging; VkDeviceMemory stagingMem;
+            createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                staging, stagingMem);
+            void* data; vkMapMemory(device, stagingMem, 0, size, 0, &data);
+            memcpy(data, src, (size_t)size);
+            vkUnmapMemory(device, stagingMem);
 
-        createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buf, mem);
-        copyBuffer(staging, buf, size);
-        vkDestroyBuffer(device, staging, nullptr);
-        vkFreeMemory(device, stagingMem, nullptr);
+            createBuffer(size,
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                buf, mem);
+            copyBuffer(staging, buf, size);
+            vkDestroyBuffer(device, staging, nullptr);
+            vkFreeMemory(device, stagingMem, nullptr);
         };
 
-    makeVB(cubeVertices, cubeVertexBuffer, cubeVertexBufferMemory);
+    // cube
+    {
+        VkDeviceSize size = sizeof(Vertex) * cubeVertices.size();
+        makeVB(size, cubeVertices.data(), cubeVertexBuffer, cubeVertexBufferMemory);
+    }
+
+    // particles
+    {
+        VkDeviceSize size = sizeof(ParticleVertex) * particleVertices.size();
+        particleVertexCount = static_cast<uint32_t>(particleVertices.size());
+        makeVB(size, particleVertices.data(), particleVertexBuffer, particleVertexBufferMemory);
+    }
 }
+
 
 // --- UBO / descriptors / command buffers / sync ----------------------------
 void HelloTriangleApplication::createUniformBuffers() {
@@ -1412,6 +1592,8 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     u.lightPos = glm::vec3(2.0f, 2.0f, 2.0f);
     u.eyePos = camPos;
 
+	u.time = static_cast<float>(glfwGetTime());
+
     memcpy(uniformBuffersMapped[frame], &u, sizeof(u));
 }
 
@@ -1500,6 +1682,10 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
         0, (uint32_t)sizeof(PushConstants), &refl);
 
     vkCmdDraw(cb, (uint32_t)cubeVertices.size(), 1, 0, 0);
+
+	vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, particlePipeline);
+	vkCmdBindVertexBuffers(cb, 0, 1, &particleVertexBuffer, offs);
+	vkCmdDraw(cb, particleVertexCount, 1, 0, 0);
 
     vkCmdEndRendering(cb);
 
