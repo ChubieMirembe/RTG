@@ -1,60 +1,73 @@
 #version 450
 
-layout(location = 0) in vec3 inParticlePos; // x,y = emitter on cube top, z = seed
-layout(location = 1) in vec2 inCorner;      // (-1,-1..1,1)
+layout(location = 0) in vec3 inParticlePos; // x,y ignored, z = particle id
+layout(location = 1) in vec2 inCorner;      // quad corner (-1,-1..1,1)
 
 layout(location = 0) out vec2 texCoord;
-layout(location = 1) out float t;           // life 0..1
-layout(location = 2) out float fade;        // extra fade for smoke
+layout(location = 1) out float lifeT;
 
-layout(set = 0, binding = 0) uniform UBO {
+// Same UBO layout as your C++ side
+layout(std140, set = 0, binding = 0) uniform UBO {
     mat4 model;
     mat4 view;
     mat4 proj;
-    vec3 lightPos;
-    vec3 eyePos;
+    vec4 lightPos;
+    vec4 eyePos;
     float time;
+    vec3 _pad;  // matches C++ float[3] padding
 } ubo;
 
-// Tunables
-const float RISE_SPEED     = 1.2;   // vertical speed
-const float LIFE_TIME      = 2.5;   // seconds until particle dies
-const float SPREAD_XZ      = 0.6;   // side drift strength
-const float SIZE_START     = 0.25;  // start quad half-size in world units
-const float SIZE_END       = 0.6;   // end size
-const float EMISSION_JITTER = 0.7;  // offset emission times
+// Tunable smoke behaviour
+#define EMISSION_RATE   0.45      // how fast new particles appear
+#define RISE_HEIGHT     4.0       // how high the smoke rises
+#define SPREAD_RADIUS   0.6       // sideways spread
+#define QUAD_SIZE       0.35      // size of each sprite
+
+// Simple hash to get repeatable pseudo-random per-id
+float hash11(float x) {
+    return fract(sin(x * 12.9898) * 43758.5453123);
+}
 
 void main() {
-    float seed = inParticlePos.z;
+    // Treat z as particle "id"
+    float id = inParticlePos.z;
 
-    // Each particle loops on [0,1)
-    float timeOffset = seed * EMISSION_JITTER * LIFE_TIME;
-    float life = mod(ubo.time + timeOffset, LIFE_TIME) / LIFE_TIME;
-    t = life;
+    // Normalized lifetime 0..1 that loops over time
+    lifeT = fract(ubo.time * EMISSION_RATE + id * 0.37);
 
-    // Upward motion
-    float y = inParticlePos.y + RISE_SPEED * life;
+    // Base position: top of the cube at origin
+    vec3 base = vec3(0.0, 0.5, 0.0);
 
-    // Curly sideways drift based on seed
-    float ang  = seed * 23.0 + life * 6.28318;
-    float xOff = SPREAD_XZ * life * 0.5 * cos(ang);
-    float zOff = SPREAD_XZ * life * 0.5 * sin(ang);
+    // Get two random values from id
+    float r1 = hash11(id * 17.0);
+    float r2 = hash11(id * 53.0);
 
-    vec3 baseWorld = vec3(inParticlePos.x + xOff, y, 0.0 + zOff);
+    // Angle around the vertical axis
+    float angle = r1 * 6.2831853; // 2π
 
-    // Camera-facing billboard
+    // Radius shrinks as the particle ages so it converges to the plume center
+    float radius = SPREAD_RADIUS * (1.0 - lifeT);
+
+    // Horizontal offset (swirl around Y axis)
+    vec3 horizontal = vec3(
+        radius * cos(angle),
+        0.0,
+        radius * sin(angle)
+    );
+
+    // Vertical rise with lifetime
+    float height = lifeT * RISE_HEIGHT;
+
+    vec3 centerWorld = base + horizontal + vec3(0.0, height, 0.0);
+
+    // Camera-facing quad (billboard) using view inverse
     mat4 viewInv = inverse(ubo.view);
-    vec3 right = normalize(viewInv[0].xyz);
-    vec3 up    = normalize(viewInv[1].xyz);
+    vec3 right = viewInv[0].xyz;
+    vec3 up    = viewInv[1].xyz;
 
-    // Size grows over life
-    float size = mix(SIZE_START, SIZE_END, life);
-
-    vec3 worldPos = baseWorld + size * (inCorner.x * right + inCorner.y * up);
-
-    // Smoke fades out near end of life
-    fade = 1.0 - smoothstep(0.7, 1.0, life);
+    vec3 worldPos = centerWorld + QUAD_SIZE * (inCorner.x * right + inCorner.y * up);
 
     gl_Position = ubo.proj * ubo.view * vec4(worldPos, 1.0);
+
     texCoord = inCorner * 0.5 + 0.5;
 }

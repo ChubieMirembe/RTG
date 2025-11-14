@@ -1,28 +1,30 @@
 #version 450
 
 layout(location = 0) in vec2 texCoord;
-layout(location = 1) in float t;
-layout(location = 2) in float fade;
+layout(location = 1) in float lifeT;
 
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    // Round-ish soft particle
+    // Turn texCoord into -1..1 space
     vec2 uv = texCoord * 2.0 - 1.0;
     float r = length(uv);
 
+    // Soft circular shape
     float alphaShape = smoothstep(1.0, 0.0, r);
 
-    float alphaLife = fade;
+    // Fade-out over lifetime: full at birth, zero at end
+    float alphaLife = 1.0 - lifeT;
+
     float alpha = alphaShape * alphaLife;
 
-    if (alpha < 0.02)
+    if (alpha < 0.01)
         discard;
 
-    // Warm smoke colour: bright at base, darker as it rises
-    vec3 hot   = vec3(1.0, 0.6, 0.1);
-    vec3 smoke = vec3(0.3, 0.3, 0.3);
-    vec3 col   = mix(hot, smoke, t);
+    // Smoke colour: bright near start, dark near end
+    vec3 startCol = vec3(1.0, 0.7, 0.3);   // near fire
+    vec3 endCol   = vec3(0.2, 0.2, 0.2);   // dark smoke
+    vec3 color = mix(startCol, endCol, lifeT);
 
-    outColor = vec4(col, alpha);
+    outColor = vec4(color, alpha);
 }

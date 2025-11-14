@@ -27,6 +27,7 @@
 #include <optional>
 #include <set>
 #include <cmath>
+#include <random>
 
 // --- Small step logger (helps catch where init dies) ---
 #define STEP(msg) do { std::cerr << "[STEP] " << msg << std::endl; } while(0)
@@ -131,13 +132,19 @@ struct ParticleVertex {
 
 
 struct UniformBufferObject {
-    alignas(16) glm::mat4 model;
-    alignas(16) glm::mat4 view;
-    alignas(16) glm::mat4 proj;
-    alignas(16) glm::vec3 lightPos;
-    alignas(16) glm::vec3 eyePos;
-    alignas(16) float     time;
+    alignas(16) glm::mat4 model;   // 0   –  63
+    alignas(16) glm::mat4 view;    // 64  – 127
+    alignas(16) glm::mat4 proj;    // 128 – 191
+
+    // std140: vec4 has 16-byte alignment, 16-byte size
+    alignas(16) glm::vec4 lightPos; // 192 – 207  (xyz used, w ignored)
+    alignas(16) glm::vec4 eyePos;   // 208 – 223  (xyz used, w ignored)
+
+    // std140: a single float still occupies a 16-byte slot
+    alignas(16) float time;         // 224 – 227
+    float _pad[3];                  // 228 – 239 (padding to fill the slot)
 };
+
 
 struct PushConstants {
     glm::mat4 modelOverride; // 64 bytes
@@ -200,33 +207,34 @@ std::vector<Vertex> cubeVertices = {
 
 std::vector<ParticleVertex> particleVertices;
 
+
 static void buildParticles() {
     particleVertices.clear();
 
-    const int   particleCount = 50;   // how many quads
-    const float emitterRadius = 0.25f; // disc radius on the cube top
-    const float cubeTopY = 0.5f;  // cube is [-0.5,0.5] so top is 0.5
+    const int   particleCount = 50;
+    const float emitterRadius = 0.25f;   // disc on cube top
+    const float cubeTopY = 0.5f;
 
     const glm::vec2 corners[4] = {
         {-1.0f, -1.0f},
         { 1.0f, -1.0f},
         { 1.0f,  1.0f},
-        {-1.0f,  1.0f},
+        {-1.0f,  1.0f}
     };
 
     for (int i = 0; i < particleCount; ++i) {
-        float seed = i / float(particleCount);  // 0..1 – becomes inParticlePos.z
+        float id = float(i) / float(particleCount);     // 0..1
 
-        // Place particle somewhere on a disc on the top face
+        // uniform-ish distribution on disc
+        float seed = id;
         float angle = seed * glm::two_pi<float>();
-        float radialBias = glm::sqrt(seed);     // more towards centre
-        float x = emitterRadius * radialBias * std::cos(angle);
-        float z = emitterRadius * radialBias * std::sin(angle);
-        float y = cubeTopY;
+        float r = emitterRadius * std::sqrt(seed);
 
-        glm::vec3 basePos(x, y, seed);
+        float x = r * std::cos(angle);
+        float z = r * std::sin(angle);
 
-        // One quad = 4 vertices with same basePos but different corners
+        glm::vec3 basePos(x, cubeTopY, id);            // z carries id/seed
+
         for (int c = 0; c < 4; ++c) {
             ParticleVertex v{};
             v.particlePos = basePos;
@@ -235,6 +243,8 @@ static void buildParticles() {
         }
     }
 }
+
+
 
 
 
@@ -1484,16 +1494,24 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
 
     u.view = glm::lookAt(camPos, target, up);
 
-    u.proj = glm::perspective(glm::radians(45.0f),
-        swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 100.0f);
-    u.proj[1][1] *= -1;
+    u.proj = glm::perspective(
+        glm::radians(45.0f),
+        swapChainExtent.width / (float)swapChainExtent.height,
+        0.1f,
+        100.0f
+    );
+    u.proj[1][1] *= -1.0f;
 
-    u.lightPos = glm::vec3(2.0f, 2.0f, 2.0f);
-    u.eyePos = camPos;
+    u.lightPos = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
+    u.eyePos = glm::vec4(camPos, 1.0f);
+
     u.time = static_cast<float>(glfwGetTime());
+
+    // padding doesn't need to be set
 
     memcpy(uniformBuffersMapped[frame], &u, sizeof(u));
 }
+
 
 void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageIndex) {
     VkCommandBufferBeginInfo bi{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
