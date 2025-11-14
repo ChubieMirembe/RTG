@@ -31,14 +31,22 @@ void main() {
         return;
     }
 
+    // Refractive cube
     vec3 N = normalize(vWorldNormal);
     vec3 V = normalize(ubo.eyePos.xyz - vWorldPos);
-    vec3 R = reflect(-V, N);
-    vec3 col = texture(uSky, R).rgb;
+
+    vec3 I = -V;                         
+    float eta = 1.0 / 1.33;              
+    vec3 T = refract(I, N, eta);         
+
+    vec3 col = texture(uSky, T).rgb;
 
     float F0 = 0.04;
     float F = F0 + (1.0 - F0) * pow(clamp(1.0 - dot(N, V), 0.0, 1.0), 5.0);
     col = mix(col * 0.8, col, F);
 
-    outColor = vec4(pow(col, vec3(1.0 / 2.2)), 1.0);
+    col = pow(col, vec3(1.0 / 2.2));
+    float alpha = 0.4;                   
+
+    outColor = vec4(col, alpha);
 }

@@ -103,12 +103,11 @@ sce
 ### EXERCISE 3:  
 
 **Solution:** 
-I fixed it by splitting the rendering into two pipelines and making small shader changes so the skybox and the
-reflective cube no longer fight over depth and face orientation. The skybox pipeline turns off depth writes and
-culls the cube interior correctly so you see the inside of the big box. The reflective pipeline writes depth and
-uses the usual back face cull so the mesh stays solid. In the shaders I added a push constant flag to switch
-between an unlit skybox path that removes the camera translation and a reflective path for the cube. With these
-changes both objects render every frame.
+I kept one `createGraphicsPipeline` function but created two different pipeline state objects for the skybox and reflective meshes.
+One was resonsible for the skybox rendering with front-face culling and depth writes disabled, while the other handled the reflective objects.
+The shaders were modified to include a uniform flag indicating whether the current draw call was for the skybox or a reflective mesh.
+I computed the world space normal and view direction and then calculated the reflection vector using GLSL's built-in reflect function.
+As the camera moves around, the reflection vector updates accordingly, allowing the reflective objects to accurately mirror the skybox environment.
 
 - Pipeline States:
 
@@ -141,15 +140,18 @@ void main() {
         return;
     }
 
+    // Reflective object pass
     vec3 N = normalize(vWorldNormal);
-    vec3 V = normalize(ubo.eyePos.xyz - vWorldPos);
-    vec3 R = reflect(-V, N);
+    vec3 V = normalize(ubo.eyePos.xyz - vWorldPos);  
+    vec3 I = -V;                                    
+
+    // Perfect mirror reflection
+    vec3 R = reflect(I, N);
+
+    // Sample cubemap with reflection vector
     vec3 col = texture(uSky, R).rgb;
 
-    float F0 = 0.04;
-    float F = F0 + (1.0 - F0) * pow(clamp(1.0 - dot(N, V), 0.0, 1.0), 5.0);
-    col = mix(col * 0.8, col, F);
-
+    // Optional: keep gamma correction
     outColor = vec4(pow(col, vec3(1.0 / 2.2)), 1.0);
 }
 ```
@@ -195,14 +197,70 @@ compete for the same pipeline settings.
 ### EXERCISE 4: 
 
 **Solution:** 
+To create the refractive effect, I modified the fragment shader to compute the refraction vector using GLSL's built-in refract function.
+The cube shader now calculates the view direction and normal in world space, then applies Snell's law to determine how light bends
+as it passes through the refractive material. I set the index of refraction (eta) to 1.33, simulating water. A blend factor based on the Fresnel equations
+was also implemented to mix the refracted color with a slight tint, enhancing realism. Finally, I enabled alpha blending in the pipeline to allow for transparency effects.
 
+- Fragment Shader:
 
+```cpp
+void main() {
+    if (pc.unlit != 0u) {
+        vec3 dir = normalize(vDir);
+        vec3 col = texture(uSky, dir).rgb;
+        outColor = vec4(pow(col, vec3(1.0 / 2.2)), 1.0);
+        return;
+    }
+
+    // Refractive cube
+    vec3 N = normalize(vWorldNormal);
+    vec3 V = normalize(ubo.eyePos.xyz - vWorldPos);
+
+    vec3 I = -V;                         
+    float eta = 1.0 / 1.33;              
+    vec3 T = refract(I, N, eta);         
+
+    vec3 col = texture(uSky, T).rgb;
+
+    float F0 = 0.04;
+    float F = F0 + (1.0 - F0) * pow(clamp(1.0 - dot(N, V), 0.0, 1.0), 5.0);
+    col = mix(col * 0.8, col, F);
+
+    col = pow(col, vec3(1.0 / 2.2));
+    float alpha = 0.4;                   
+
+    outColor = vec4(col, alpha);
+}
+```
+- Blend State:
+
+```cpp
+VkPipelineColorBlendAttachmentState cba{};
+cba.colorWriteMask =
+    VK_COLOR_COMPONENT_R_BIT |
+    VK_COLOR_COMPONENT_G_BIT |
+    VK_COLOR_COMPONENT_B_BIT |
+    VK_COLOR_COMPONENT_A_BIT;
+
+cba.blendEnable         = VK_TRUE;
+cba.srcColorBlendFactor = VK_SRC_ALPHA;
+cba.dstColorBlendFactor = VK_ONE_MINUS_SRC_ALPHA;
+cba.colorBlendOp        = VK_BLEND_OP_ADD;
+cba.srcAlphaBlendFactor = VK_ONE;
+cba.dstAlphaBlendFactor = VK_ONE_MINUS_SRC_ALPHA;
+cba.alphaBlendOp        = VK_BLEND_OP_ADD;
+
+```
 **Output:**
-
-
+![](images/ex4.png)
 
 **Reflection:**
+This exercise was particularly challenging as it required a solid understanding of both the mathematical principles behind refraction and the practical implementation in GLSL.
+Implementing Snell's law and the Fresnel equations in the shader code was a great learning experience, as it deepened my understanding of how light interacts with different materials.
+Enabling alpha blending also introduced me to the complexities of rendering transparent objects in Vulkan, which is not as straightforward as opaque rendering.
 
+---
 
 
 ### EXERCISE 5:  

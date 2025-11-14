@@ -890,6 +890,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     stages[0].module = vs;
     stages[0].pName = "main";
+
     stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     stages[1].module = fs;
@@ -901,45 +902,77 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     VkPipelineVertexInputStateCreateInfo vi{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
     vi.vertexBindingDescriptionCount = 1;
     vi.pVertexBindingDescriptions = &bindDesc;
-    vi.vertexAttributeDescriptionCount = (uint32_t)attrDesc.size();
+    vi.vertexAttributeDescriptionCount = static_cast<uint32_t>(attrDesc.size());
     vi.pVertexAttributeDescriptions = attrDesc.data();
 
     VkPipelineInputAssemblyStateCreateInfo ia{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
     ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     VkPipelineViewportStateCreateInfo vp{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
-    vp.viewportCount = 1; vp.scissorCount = 1;
+    vp.viewportCount = 1;
+    vp.scissorCount = 1;
 
     VkPipelineRasterizationStateCreateInfo rsCommon{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
     rsCommon.polygonMode = VK_POLYGON_MODE_FILL;
     rsCommon.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rsCommon.cullMode = VK_CULL_MODE_BACK_BIT;  // default, we override per-pipeline
     rsCommon.lineWidth = 1.0f;
 
     VkPipelineMultisampleStateCreateInfo ms{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
     ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-    VkPipelineColorBlendAttachmentState cba{};
-    cba.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    // --- Color blend attachment states ---
 
-    VkPipelineColorBlendStateCreateInfo cb{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-    cb.attachmentCount = 1; cb.pAttachments = &cba;
+    // Skybox: opaque (no blending)
+    VkPipelineColorBlendAttachmentState cbaSky{};
+    cbaSky.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT |
+        VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT |
+        VK_COLOR_COMPONENT_A_BIT;
+    cbaSky.blendEnable = VK_FALSE;
 
-    std::vector<VkDynamicState> dyn = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    // Cube: alpha blending
+    VkPipelineColorBlendAttachmentState cbaRefract = cbaSky;
+    cbaRefract.blendEnable = VK_TRUE;
+    cbaRefract.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    cbaRefract.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    cbaRefract.colorBlendOp = VK_BLEND_OP_ADD;
+    cbaRefract.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    cbaRefract.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    cbaRefract.alphaBlendOp = VK_BLEND_OP_ADD;
+
+
+    VkPipelineColorBlendStateCreateInfo cbSky{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    cbSky.attachmentCount = 1;
+    cbSky.pAttachments = &cbaSky;
+
+    VkPipelineColorBlendStateCreateInfo cbRefract{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    cbRefract.attachmentCount = 1;
+    cbRefract.pAttachments = &cbaRefract;
+
+    std::vector<VkDynamicState> dyn = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
     VkPipelineDynamicStateCreateInfo ds{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
-    ds.dynamicStateCount = (uint32_t)dyn.size();
+    ds.dynamicStateCount = static_cast<uint32_t>(dyn.size());
     ds.pDynamicStates = dyn.data();
 
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    pcr.offset = 0; pcr.size = sizeof(PushConstants);
+    pcr.offset = 0;
+    pcr.size = sizeof(PushConstants);
 
     VkPipelineLayoutCreateInfo pl{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    pl.setLayoutCount = 1; pl.pSetLayouts = &descriptorSetLayout;
-    pl.pushConstantRangeCount = 1; pl.pPushConstantRanges = &pcr;
+    pl.setLayoutCount = 1;
+    pl.pSetLayouts = &descriptorSetLayout;
+    pl.pushConstantRangeCount = 1;
+    pl.pPushConstantRanges = &pcr;
 
-    if (vkCreatePipelineLayout(device, &pl, nullptr, &pipelineLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(device, &pl, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create pipeline layout!");
+    }
 
     VkFormat depthFormat = findDepthFormat();
     VkPipelineRenderingCreateInfo rend{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
@@ -947,9 +980,9 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     rend.pColorAttachmentFormats = &swapChainImageFormat;
     rend.depthAttachmentFormat = depthFormat;
 
-    // ---------- SKYBOX PIPELINE (front-face cull, no depth write) ----------
+    // ---- SKYBOX PIPELINE ----
     VkPipelineRasterizationStateCreateInfo rsSky = rsCommon;
-    rsSky.cullMode = VK_CULL_MODE_FRONT_BIT;
+    rsSky.cullMode = VK_CULL_MODE_FRONT_BIT;  // draw inside faces for skybox
 
     VkPipelineDepthStencilStateCreateInfo dzSky{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
     dzSky.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
@@ -957,43 +990,49 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     dzSky.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
     VkGraphicsPipelineCreateInfo gps[2]{};
+
     gps[0].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     gps[0].pNext = &rend;
-    gps[0].stageCount = 2;       gps[0].pStages = stages;
+    gps[0].stageCount = 2;
+    gps[0].pStages = stages;
     gps[0].pVertexInputState = &vi;
     gps[0].pInputAssemblyState = &ia;
     gps[0].pViewportState = &vp;
     gps[0].pRasterizationState = &rsSky;
     gps[0].pMultisampleState = &ms;
-    gps[0].pColorBlendState = &cb;
+    gps[0].pColorBlendState = &cbSky;       // <--- opaque skybox
     gps[0].pDynamicState = &ds;
     gps[0].pDepthStencilState = &dzSky;
     gps[0].layout = pipelineLayout;
     gps[0].renderPass = VK_NULL_HANDLE;
     gps[0].subpass = 0;
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gps[0], nullptr, &skyboxPipeline) != VK_SUCCESS)
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gps[0], nullptr, &skyboxPipeline) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create skybox pipeline!");
+    }
 
-    // ---------- REFLECTIVE PIPELINE (back-face cull, write depth) ----------
-    VkPipelineRasterizationStateCreateInfo rsRefl = rsCommon;
-    rsRefl.cullMode = VK_CULL_MODE_BACK_BIT;
+    // ---- REFRACTIVE CUBE PIPELINE ----
+    VkPipelineRasterizationStateCreateInfo rsRefract = rsCommon;
+    rsRefract.cullMode = VK_CULL_MODE_BACK_BIT;
 
-    VkPipelineDepthStencilStateCreateInfo dzRefl{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-    dzRefl.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
-    dzRefl.depthWriteEnable = VK_TRUE;                   // <- important
-    dzRefl.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    VkPipelineDepthStencilStateCreateInfo dzRefract{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    dzRefract.depthTestEnable = USE_DEPTH ? VK_TRUE : VK_FALSE;
+    dzRefract.depthWriteEnable = VK_TRUE;              // one transparent object -> fine
+    dzRefract.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
     gps[1] = gps[0];
-    gps[1].pRasterizationState = &rsRefl;
-    gps[1].pDepthStencilState = &dzRefl;
+    gps[1].pRasterizationState = &rsRefract;
+    gps[1].pDepthStencilState = &dzRefract;
+    gps[1].pColorBlendState = &cbRefract;           // <--- alpha blending for cube
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gps[1], nullptr, &reflectPipeline) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create reflective pipeline!");
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gps[1], nullptr, &reflectPipeline) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create refractive pipeline!");
+    }
 
     vkDestroyShaderModule(device, fs, nullptr);
     vkDestroyShaderModule(device, vs, nullptr);
 }
+
 
 
 
@@ -1354,7 +1393,7 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
     UniformBufferObject u{};
 
     // Keep your cube model transform (e.g., a slow spin)
-    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f),
+    u.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
 
     // Target is the cube at the origin
