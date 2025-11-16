@@ -1,12 +1,20 @@
 #version 450
 
-layout(location = 0) in vec3 inParticlePos; // x,y ignored, z = particle id
-layout(location = 1) in vec2 inCorner;      // quad corner (-1,-1..1,1)
+// ----------------------------------------------------------
+// Inputs
+// ----------------------------------------------------------
+layout(location = 0) in vec3 inParticlePos; // x,y = emitter base on cube top, z = particle id
+layout(location = 1) in vec2 inCorner;      // quad corner (-1,-1 .. 1,1)
 
-layout(location = 0) out vec2 texCoord;
-layout(location = 1) out float lifeT;
+// ----------------------------------------------------------
+// Outputs to fragment shader
+// ----------------------------------------------------------
+layout(location = 0) out vec2 texCoord; // for radial/vertical shaping
+layout(location = 1) out float t;       // lifetime / height parameter
 
-// Same UBO layout as your C++ side
+// ----------------------------------------------------------
+// UBO (matches your C++ UniformBufferObject)
+// ----------------------------------------------------------
 layout(std140, set = 0, binding = 0) uniform UBO {
     mat4 model;
     mat4 view;
@@ -14,60 +22,67 @@ layout(std140, set = 0, binding = 0) uniform UBO {
     vec4 lightPos;
     vec4 eyePos;
     float time;
-    vec3 _pad;  // matches C++ float[3] padding
+    vec3 _pad;
 } ubo;
 
-// Tunable smoke behaviour
-#define EMISSION_RATE   0.45      // how fast new particles appear
-#define RISE_HEIGHT     4.0       // how high the smoke rises
-#define SPREAD_RADIUS   0.6       // sideways spread
-#define QUAD_SIZE       0.35      // size of each sprite
-
-// Simple hash to get repeatable pseudo-random per-id
-float hash11(float x) {
-    return fract(sin(x * 12.9898) * 43758.5453123);
-}
+// ----------------------------------------------------------
+// Tunable fire parameters (lecture-style)
+// ----------------------------------------------------------
+#define particleSpeed         0.48      // how fast particles loop in time
+#define particleSpread        0.40      // horizontal spread radius near base
+#define particleSize          0.30      // base sprite size
+#define particleSystemHeight  2.0       // total fire height above cube
 
 void main() {
-    // Treat z as particle "id"
+    // ------------------------------------------------------
+    // 1) Time slice: lecture’s looping formula
+    //      t = fract(id + particleSpeed * time)
+    //    Each particle always exists, just moves from bottom
+    //    to top and loops smoothly.
+    // ------------------------------------------------------
     float id = inParticlePos.z;
+    t = fract(id + particleSpeed * ubo.time);
 
-    // Normalized lifetime 0..1 that loops over time
-    lifeT = fract(ubo.time * EMISSION_RATE + id * 0.37);
+    // ------------------------------------------------------
+    // 2) Base position: top face of the cube
+    //    Your cube is -0.5..0.5 in Y, so top is at y = 0.5
+    //    Use inParticlePos.x/y for emitter disc on that top.
+    // ------------------------------------------------------
+    vec3 base = vec3(inParticlePos.x, 0.5, inParticlePos.y);
 
-    // Base position: top of the cube at origin
-    vec3 base = vec3(0.0, 0.5, 0.0);
+    // ------------------------------------------------------
+    // 3) Horizontal swirl (semi-random using id)
+    //    Radius shrinks with t so the plume tightens higher up
+    // ------------------------------------------------------
+    float angle = 50.0 * id;                         // pseudo-random sway
+    float radius = particleSpread * (1.0 - t);       // wide near bottom, tight near top
 
-    // Get two random values from id
-    float r1 = hash11(id * 17.0);
-    float r2 = hash11(id * 53.0);
+    vec3 center;
+    center.x = base.x + radius * cos(angle);
+    center.z = base.z + radius * sin(angle);
 
-    // Angle around the vertical axis
-    float angle = r1 * 6.2831853; // 2π
+    // vertical rise along +Y
+    center.y = base.y + t * particleSystemHeight;
 
-    // Radius shrinks as the particle ages so it converges to the plume center
-    float radius = SPREAD_RADIUS * (1.0 - lifeT);
-
-    // Horizontal offset (swirl around Y axis)
-    vec3 horizontal = vec3(
-        radius * cos(angle),
-        0.0,
-        radius * sin(angle)
-    );
-
-    // Vertical rise with lifetime
-    float height = lifeT * RISE_HEIGHT;
-
-    vec3 centerWorld = base + horizontal + vec3(0.0, height, 0.0);
-
-    // Camera-facing quad (billboard) using view inverse
+    // ------------------------------------------------------
+    // 4) Billboarding: align quad with camera view plane
+    //    Use inverse(view) to get camera-right and camera-up
+    // ------------------------------------------------------
     mat4 viewInv = inverse(ubo.view);
     vec3 right = viewInv[0].xyz;
     vec3 up    = viewInv[1].xyz;
 
-    vec3 worldPos = centerWorld + QUAD_SIZE * (inCorner.x * right + inCorner.y * up);
+    // Slightly stretch flames vertically
+    float sizeH = particleSize;        // horizontal half-size
+    float sizeV = particleSize * 1.8;  // vertical half-size
+
+    vec3 worldPos =
+        center +
+        right * (inCorner.x * sizeH) +
+        up    * (inCorner.y * sizeV);
 
     gl_Position = ubo.proj * ubo.view * vec4(worldPos, 1.0);
 
+    // Map from [-1,1] → [0,1] for texturing
     texCoord = inCorner * 0.5 + 0.5;
 }

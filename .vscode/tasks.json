@@ -2,7 +2,35 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Manual Vulkan macOS build",
+            "label": "Compile particle.vert",
+            "type": "shell",
+            "command": "${env:VULKAN_SDK}/bin/glslc",
+            "args": [
+                "${workspaceFolder}/shaders/particle.vert",
+                "-o",
+                "${workspaceFolder}/shaders/particle.vert.spv"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Compile particle.frag",
+            "type": "shell",
+            "command": "${env:VULKAN_SDK}/bin/glslc",
+            "args": [
+                "${workspaceFolder}/shaders/particle.frag",
+                "-o",
+                "${workspaceFolder}/shaders/particle.frag.spv"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Vulkan app (macOS)",
             "type": "shell",
             "command": "/usr/bin/clang++",
             "args": [
@@ -15,7 +43,8 @@
                 "-I/usr/local/opt/glfw/include",
                 "-I/usr/local/opt/glm/include",
 
-                "${file}",
+                // main C++ file(s) – adjust the name if needed
+                "${workspaceFolder}/Lab_Tutorial_Template.cpp",
 
                 "-L/usr/local/opt/glfw/lib",
                 "-L${env:VULKAN_SDK}/lib",
@@ -28,13 +57,20 @@
                 "-framework", "CoreVideo",
 
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
+                "${workspaceFolder}/Lab_Tutorial_Template"
             ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "problemMatcher": "$gcc"
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Compile particle.vert",
+                "Compile particle.frag"
+            ]
         }
     ]
 }

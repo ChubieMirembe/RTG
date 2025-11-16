@@ -211,7 +211,7 @@ std::vector<ParticleVertex> particleVertices;
 static void buildParticles() {
     particleVertices.clear();
 
-    const int   particleCount = 50;
+    const int   particleCount = 200;
     const float emitterRadius = 0.25f;   // disc on cube top
     const float cubeTopY = 0.5f;
 
@@ -233,6 +233,7 @@ static void buildParticles() {
         float x = r * std::cos(angle);
         float z = r * std::sin(angle);
 
+        
         glm::vec3 basePos(x, cubeTopY, id);            // z carries id/seed
 
         for (int c = 0; c < 4; ++c) {
