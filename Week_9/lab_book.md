@@ -63,7 +63,7 @@
 ```
 **Output:**
 
-![](images/ex3.png)]
+![](images/ex3.png)
 
 **Reflection:**
 

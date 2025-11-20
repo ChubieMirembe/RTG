@@ -235,7 +235,20 @@ REM Particle fragment shader
     <Image Include="x64\Debug\wall.jpg" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="SHADERS\post.frag" />
+    <CustomBuild Include="SHADERS\texture_map.frag">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">glslc ".\Shaders\texture_map.frag" -o ".\Shaders\texture_map.frag.spv"
+
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Shaders\texture_map.frag.spv</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="SHADERS\textured_cube.vert">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">glslc ".\Shaders\textured_cube.vert" -o ".\Shaders\textured_cube.vert.spv"
+
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Shaders\textured_cube.vert.spv;%(Outputs)</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
