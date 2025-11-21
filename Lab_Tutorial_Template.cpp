@@ -901,34 +901,39 @@ void HelloTriangleApplication::createDescriptorSetLayout() {
     }
 }
 
-
 void HelloTriangleApplication::createPostDescriptorSetLayout() {
-    // binding 0: UBO
+
+    // binding 0 : UBO (same as before)
     VkDescriptorSetLayoutBinding ubo{};
     ubo.binding = 0;
     ubo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     ubo.descriptorCount = 1;
     ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    // binding 1: offscreen texture
-    VkDescriptorSetLayoutBinding img{};
-    img.binding = 1;
-    img.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    img.descriptorCount = 1;
-    img.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // binding 1 : blurred texture
+    VkDescriptorSetLayoutBinding blurred{};
+    blurred.binding = 1;
+    blurred.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    blurred.descriptorCount = 1;
+    blurred.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings{ ubo, img };
+    // binding 2 : original sharp texture
+    VkDescriptorSetLayoutBinding sharp{};
+    sharp.binding = 2;
+    sharp.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    sharp.descriptorCount = 1;
+    sharp.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings{ ubo, blurred, sharp };
 
     VkDescriptorSetLayoutCreateInfo ci{};
     ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    ci.bindingCount = static_cast<uint32_t>(bindings.size());
+    ci.bindingCount = (uint32_t)bindings.size();
     ci.pBindings = bindings.data();
 
-    if (vkCreateDescriptorSetLayout(device, &ci, nullptr, &postDescriptorSetLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create post descriptor set layout");
-    }
+    if (vkCreateDescriptorSetLayout(device, &ci, nullptr, &postDescriptorSetLayout) != VK_SUCCESS)
+        throw std::runtime_error("failed to create post descriptor layout");
 }
-
 
 void HelloTriangleApplication::createPostDescriptorSets() {
     postDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
@@ -946,21 +951,22 @@ void HelloTriangleApplication::createPostDescriptorSets() {
     }
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        // binding 0: same UBO as main pipeline (per-frame)
+
+        // binding 0: same UBO as main pipeline
         VkDescriptorBufferInfo buf{};
         buf.buffer = uniformBuffers[i];
         buf.offset = 0;
         buf.range = sizeof(UniformBufferObject);
 
-        // binding 1: offscreen texture
-        VkDescriptorImageInfo img{};
-        img.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        img.imageView = offscreenImageView;
-        img.sampler = offscreenSampler;
+        // binding 1: ONLY ONE texture (the original offscreen RTT)
+        VkDescriptorImageInfo sceneTex{};
+        sceneTex.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        sceneTex.imageView = offscreenImageView;   // the RTT image from pass 1
+        sceneTex.sampler = offscreenSampler;
 
         std::array<VkWriteDescriptorSet, 2> writes{};
 
-        // UBO
+        // binding 0 → UBO
         writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[0].dstSet = postDescriptorSets[i];
         writes[0].dstBinding = 0;
@@ -968,13 +974,13 @@ void HelloTriangleApplication::createPostDescriptorSets() {
         writes[0].descriptorCount = 1;
         writes[0].pBufferInfo = &buf;
 
-        // sampler
+        // binding 1 → sceneTex (sharp scene, used for blur+glow in shader)
         writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[1].dstSet = postDescriptorSets[i];
         writes[1].dstBinding = 1;
         writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writes[1].descriptorCount = 1;
-        writes[1].pImageInfo = &img;
+        writes[1].pImageInfo = &sceneTex;
 
         vkUpdateDescriptorSets(
             device,
@@ -984,6 +990,8 @@ void HelloTriangleApplication::createPostDescriptorSets() {
         );
     }
 }
+
+
 
 
 
@@ -1116,7 +1124,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 void HelloTriangleApplication::createPostPipeline() {
 
     auto vsCode = readFile("shaders/fullscreen.vert.spv");
-    auto fsCode = readFile("shaders/blur.frag.spv");
+    auto fsCode = readFile("shaders/glow.frag.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vsCode);
     VkShaderModule fragShaderModule = createShaderModule(fsCode);
@@ -1631,17 +1639,17 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(cb, &bi);
 
-    // ---------------------------
-    // PASS 1: Render cube to offscreen
-    // ---------------------------
+    // ---------------------------------------------------------
+    // PASS 1: Render scene to offscreenImage (sharp)
+    // ---------------------------------------------------------
 
-    // Transition offscreen image → COLOR_ATTACHMENT
     VkImageMemoryBarrier2 offToColor{};
     offToColor.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    offToColor.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-    offToColor.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     offToColor.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     offToColor.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    offToColor.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+    offToColor.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    offToColor.srcAccessMask = 0;
     offToColor.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
     offToColor.image = offscreenImage;
     offToColor.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
@@ -1652,15 +1660,13 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
     dep1.pImageMemoryBarriers = &offToColor;
     vkCmdPipelineBarrier2(cb, &dep1);
 
-    // Dynamic rendering for Pass 1
     VkRenderingAttachmentInfo colorAtt1{};
     colorAtt1.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     colorAtt1.imageView = offscreenImageView;
     colorAtt1.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     colorAtt1.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAtt1.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    VkClearValue clear1 = { { {0.1f, 0.1f, 0.2f, 1.0f} } };
-    colorAtt1.clearValue = clear1;
+    colorAtt1.clearValue = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
 
     VkRenderingInfo render1{};
     render1.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -1671,48 +1677,33 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
 
     vkCmdBeginRendering(cb, &render1);
 
-    // REQUIRED: viewport + scissor for Pass 1
-    VkViewport vp1{};
-    vp1.x = 0.0f;
-    vp1.y = 0.0f;
-    vp1.width = static_cast<float>(swapChainExtent.width);
-    vp1.height = static_cast<float>(swapChainExtent.height);
-    vp1.minDepth = 0.0f;
-    vp1.maxDepth = 1.0f;
-    vkCmdSetViewport(cb, 0, 1, &vp1);
-
-    VkRect2D sc1{};
-    sc1.offset = { 0, 0 };
-    sc1.extent = swapChainExtent;
-    vkCmdSetScissor(cb, 0, 1, &sc1);
-
-    // Bind cube pipeline & descriptors
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
     vkCmdBindDescriptorSets(
         cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipelineLayout, 0, 1,
-        &descriptorSets[currentFrame], 0, nullptr
-    );
+        &descriptorSets[currentFrame], 0, nullptr);
 
     VkDeviceSize offs = 0;
     vkCmdBindVertexBuffers(cb, 0, 1, &cubeVertexBuffer, &offs);
     vkCmdBindIndexBuffer(cb, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
     vkCmdDrawIndexed(cb, indexCount, 1, 0, 0, 0);
 
     vkCmdEndRendering(cb);
 
-    // ---------------------------
-    // Barrier: Pass 1 → Pass 2
-    // ---------------------------
+
+    // ---------------------------------------------------------
+    // BARRIER: Prepare offscreenImage for sampling
+    // ---------------------------------------------------------
 
     VkImageMemoryBarrier2 colorToRead{};
     colorToRead.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    colorToRead.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorToRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     colorToRead.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     colorToRead.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     colorToRead.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
     colorToRead.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-    colorToRead.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorToRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     colorToRead.image = offscreenImage;
     colorToRead.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
@@ -1722,56 +1713,59 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
     dep2.pImageMemoryBarriers = &colorToRead;
     vkCmdPipelineBarrier2(cb, &dep2);
 
-    // ---------------------------
-    // PASS 2: Fullscreen Blur (offscreen -> swapchain)
-    // ---------------------------
 
-    VkRenderingAttachmentInfo colorAtt2{};
-    colorAtt2.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    colorAtt2.imageView = swapChainImageViews[imageIndex];
-    colorAtt2.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorAtt2.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAtt2.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAtt2.clearValue = { { {0.0f, 0.0f, 0.0f, 1.0f} } };
+    // ---------------------------------------------------------
+    // PASS 2: Apply blur + glow shader to the swapchain image
+    // ---------------------------------------------------------
+
+    VkRenderingAttachmentInfo swapAtt{};
+    swapAtt.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    swapAtt.imageView = swapChainImageViews[imageIndex];
+    swapAtt.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    swapAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    swapAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    swapAtt.clearValue = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
 
     VkRenderingInfo render2{};
     render2.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     render2.colorAttachmentCount = 1;
-    render2.pColorAttachments = &colorAtt2;
+    render2.pColorAttachments = &swapAtt;
     render2.renderArea = { {0, 0}, swapChainExtent };
     render2.layerCount = 1;
 
     vkCmdBeginRendering(cb, &render2);
 
-    // REQUIRED: viewport + scissor for Pass 2
-    VkViewport vp2{};
-    vp2.x = 0.0f;
-    vp2.y = 0.0f;
-    vp2.width = static_cast<float>(swapChainExtent.width);
-    vp2.height = static_cast<float>(swapChainExtent.height);
-    vp2.minDepth = 0.0f;
-    vp2.maxDepth = 1.0f;
-    vkCmdSetViewport(cb, 0, 1, &vp2);
+    VkViewport vp{};
+    vp.x = 0;
+    vp.y = 0;
+    vp.width = (float)swapChainExtent.width;
+    vp.height = (float)swapChainExtent.height;
+    vp.minDepth = 0.0f;
+    vp.maxDepth = 1.0f;
+    vkCmdSetViewport(cb, 0, 1, &vp);
 
-    VkRect2D sc2{};
-    sc2.offset = { 0, 0 };
-    sc2.extent = swapChainExtent;
-    vkCmdSetScissor(cb, 0, 1, &sc2);
+    VkRect2D sc{};
+    sc.offset = { 0, 0 };
+    sc.extent = swapChainExtent;
+    vkCmdSetScissor(cb, 0, 1, &sc);
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, postPipeline);
+
     vkCmdBindDescriptorSets(
         cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
-        postPipelineLayout, 0, 1,
-        &postDescriptorSets[currentFrame], 0, nullptr
-    );
+        postPipelineLayout,
+        0, 1,
+        &postDescriptorSets[currentFrame],
+        0, nullptr);
 
-    // fullscreen triangle
+    // Fullscreen triangle for glow
     vkCmdDraw(cb, 3, 1, 0, 0);
 
     vkCmdEndRendering(cb);
 
     vkEndCommandBuffer(cb);
 }
+
 
 
 
