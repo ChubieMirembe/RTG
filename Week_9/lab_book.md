@@ -244,21 +244,60 @@ post processing effects are layered on top of normal scene rendering.
 ### EXERCISE 3: SIMPLE GLOW EFFECT
 
 **Solution:** 
+For this exerise, the first thing I did was to create a fragment shader that implements a glow effect by combining a blurred version of the
+scene.The shader uses the same logic that was use in the previous full screen blur effect to sample nearby texels and compute a blurred color.
+It then adds this blurred color to the original sharp color sampled from the texture, scaled by a glow strength factor. This creates a 
+glowing effect around bright areas of the scene. I then integrated this shader into the existing render to texture framework from the
+previous exercises. The command buffer records two passes: the first pass renders the scene into an offscreen image, and the second pass
+applies the glow shader to produce the final output on the swapchain image. By binding the appropriate descriptor sets and pipelines, the 
+glow effect is applied in real time as the scene is rendered.
 
+- Fragment shader for glow effect
 
-```cpp
-```
-```cpp
-```
 ```c++
-```
-```c++
+#version 450
+
+layout(location = 0) in vec2 uv;
+layout(location = 0) out vec4 outColor;
+
+layout(set = 0, binding = 1) uniform sampler2D sceneTexture;
+
+void main() {
+    int   boxSize   = 7;   
+    float stepSize  = 6.0; 
+
+    vec2 texel = stepSize / vec2(textureSize(sceneTexture, 0));
+
+    vec3 sum   = vec3(0.0);
+    int  total = 0;
+
+    for (int x = -boxSize; x <= boxSize; x++) {
+        for (int y = -boxSize; y <= boxSize; y++) {
+            vec2 offset = vec2(x, y) * texel;
+            sum += texture(sceneTexture, uv + offset).rgb;
+            total++;
+        }
+    }
+
+    vec3 blurred = sum / float(total);
+    vec3 sharp = texture(sceneTexture, uv).rgb;
+
+    float glowStrength = 2.5; 
+    vec3 result = sharp + blurred * glowStrength;
+
+    outColor = vec4(result, 1.0);
+}
 ```
 **Output:**
 
 ![](images/ex3.png)
 
 **Reflection:**
+This exercise deepened my understanding of how post processing effects can be layered on top of standard rendering techniques in Vulkan. 
+By implementing a glow effect that combines a blurred version of the scene with the original sharp image, I learned how to manipulate texture
+data in shaders to achieve visually appealing results. The process of sampling nearby texels and blending them with the original color highlighted the
+flexibility of fragment shaders in creating custom effects. Integrating this shader into the existing render to texture framework reinforced my
+knowledge of multi pass rendering, descriptor sets, and pipeline management in Vulkan.
 
 ---
 
