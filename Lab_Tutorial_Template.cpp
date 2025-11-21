@@ -1018,7 +1018,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     VkPipelineRasterizationStateCreateInfo rs{};
     rs.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rs.polygonMode = VK_POLYGON_MODE_FILL;
-    rs.cullMode = VK_CULL_MODE_NONE;
+    rs.cullMode = VK_CULL_MODE_BACK_BIT;
     rs.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rs.lineWidth = 1.0f;
 
@@ -1538,27 +1538,27 @@ void HelloTriangleApplication::createSyncObjects() {
 // --- Per-frame -------------------------------------------------------------
 
 void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
-    static auto t0 = std::chrono::high_resolution_clock::now();
-    auto now = std::chrono::high_resolution_clock::now();
-    float t = std::chrono::duration<float>(now - t0).count();
-
     UniformBufferObject u{};
 
-    // Rotate cube around Y over time
-    float angle = t; // already in radians-per-second-ish
-    u.model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
+    // Rotate cube by a fixed 45 degrees around Y axis
+    u.model = glm::rotate(
+        glm::mat4(1.0f),
+        glm::radians(45.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f)
+    );
 
     glm::vec3 camPos = glm::vec3(0.0f, 1.5f, 3.0f);
     u.view = glm::lookAt(
         camPos,
-        glm::vec3(0.0f, 0.0f, 0.0f),    // look at origin
+        glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(0.0f, 1.0f, 0.0f)
     );
 
     u.proj = glm::perspective(
         glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height,
-        0.1f, 10.0f
+        0.1f,
+        10.0f
     );
     u.proj[1][1] *= -1;
 
@@ -1567,6 +1567,8 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
 
     memcpy(uniformBuffersMapped[frame], &u, sizeof(u));
 }
+
+
 
 void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageIndex) {
     VkCommandBufferBeginInfo bi{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
