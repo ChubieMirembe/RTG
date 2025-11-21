@@ -3,6 +3,11 @@
 ### EXERCISE 1: RENDER-TO-TEXTURE ON A CUBE
 
 **Solution:** 
+To complete this exerrcise the main resource I used was the lecture slides and the lab sheet. Combining the two resources I was 
+able to implement the render-to-texture technique in Vulkan. The main steps involved were: creating offscreen resources, creating
+a post-processing descriptor set layout, and recording the command buffer with two passes. I then created shaders for both passes
+to render the scene to a texture and then map that texture onto a cube. 
+
 
 - Create offscreen resources
 
@@ -122,7 +127,8 @@ vkCmdEndRendering(cb);
 ![](images/ex1_2.png)
 
 **Reflection:**
-
+This exerrcise continued my understanding of Vulkan's rendering pipeline, particularly in the context of offscreen rendering
+and texture mapping. The challenge was in managing the image layouts and ensuring that the transitions between different stages were handled correctly.
 
 ---
 
