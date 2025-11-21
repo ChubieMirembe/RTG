@@ -250,6 +250,20 @@ REM Particle fragment shader
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Shaders\textured_cube.vert.spv;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="SHADERS\blur.frag">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">glslc ".\Shaders\blur.frag" -o ".\Shaders\blur.frag.spv"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Shaders\blur.frag.spv</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="SHADERS\fullscreen.vert">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">glslc ".\Shaders\fullscreen.vert" -o ".\Shaders\fullscreen.vert.spv"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Shaders\fullscreen.vert.spv</Outputs>
+    </CustomBuild>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="packages\assimp_native.redist.4.0.1\build\native\assimp_native.redist.targets" Condition="Exists('packages\assimp_native.redist.4.0.1\build\native\assimp_native.redist.targets')" />

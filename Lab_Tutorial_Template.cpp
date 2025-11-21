@@ -278,6 +278,14 @@ private:
     VkPipelineLayout postPipelineLayout;
     std::vector<VkDescriptorSet> postDescriptorSets;
 
+    // For cube index rendering
+    VkBuffer indexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory indexBufferMemory = VK_NULL_HANDLE;
+    uint32_t indexCount = 0;
+
+    // For cube vertices
+    VkBuffer vertexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
 
     // Buffers
     VkBuffer cubeVertexBuffer = VK_NULL_HANDLE;
@@ -331,6 +339,7 @@ private:
 
     void createVertexBuffers();
     void createUniformBuffers();
+    void createIndexBuffer();
     void createDescriptorPool();
     void createDescriptorSets();
     void createCommandBuffers();
@@ -432,23 +441,25 @@ void HelloTriangleApplication::initVulkan() {
     STEP("createDescriptorPool");  createDescriptorPool();
     STEP("createDescriptorSets");  createDescriptorSets();
     STEP("createPostDescriptorSets"); createPostDescriptorSets();
+    STEP("createIndexBuffer"); createIndexBuffer();
 
     STEP("createCommandBuffers");  createCommandBuffers();
     STEP("createSyncObjects");     createSyncObjects();
 
 }
 
+
 void HelloTriangleApplication::mainLoop() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
         // Simple key-based toggle:
-        if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
-            renderMode = RenderMode::SceneDirect;   // pass 1 only
-        }
-        if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
-            renderMode = RenderMode::SceneRTT;      // both passes (RTT)
-        }
+        //if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+        //    renderMode = RenderMode::SceneDirect;   // pass 1 only
+        //}
+        //if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
+        //    renderMode = RenderMode::SceneRTT;      // both passes (RTT)
+        //}
 
         drawFrame();
     }
@@ -1103,117 +1114,119 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 }
 
 void HelloTriangleApplication::createPostPipeline() {
-    auto vsCode = readFile("shaders/textured_cube.vert.spv");
-    auto fsCode = readFile("shaders/texture_map.frag.spv");
 
-    VkShaderModule vs = createShaderModule(vsCode);
-    VkShaderModule fs = createShaderModule(fsCode);
+    auto vsCode = readFile("shaders/fullscreen.vert.spv");
+    auto fsCode = readFile("shaders/blur.frag.spv");
 
-    VkPipelineShaderStageCreateInfo stages[2]{};
-    stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    stages[0].module = vs;
-    stages[0].pName = "main";
+    VkShaderModule vertShaderModule = createShaderModule(vsCode);
+    VkShaderModule fragShaderModule = createShaderModule(fsCode);
 
-    stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    stages[1].module = fs;
-    stages[1].pName = "main";
+    VkPipelineShaderStageCreateInfo vertStage{};
+    vertStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertStage.module = vertShaderModule;
+    vertStage.pName = "main";
 
-    // Reuse the cube vertex format
-    auto bindDesc = Vertex::getBindingDescription();
-    auto attrDesc = Vertex::getTexturedAttributeDescriptions();
+    VkPipelineShaderStageCreateInfo fragStage{};
+    fragStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragStage.module = fragShaderModule;
+    fragStage.pName = "main";
 
-    VkPipelineVertexInputStateCreateInfo vi{};
-    vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vi.vertexBindingDescriptionCount = 1;
-    vi.pVertexBindingDescriptions = &bindDesc;
-    vi.vertexAttributeDescriptionCount = static_cast<uint32_t>(attrDesc.size());
-    vi.pVertexAttributeDescriptions = attrDesc.data();
+    VkPipelineShaderStageCreateInfo shaderStages[] = {
+        vertStage, fragStage
+    };
 
-    VkPipelineInputAssemblyStateCreateInfo ia{};
-    ia.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    // -------- FULLSCREEN QUAD HAS NO VERTEX INPUTS --------
+    VkPipelineVertexInputStateCreateInfo vertexInput{};
+    vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInput.vertexBindingDescriptionCount = 0;
+    vertexInput.vertexAttributeDescriptionCount = 0;
 
-    VkPipelineViewportStateCreateInfo vp{};
-    vp.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    vp.viewportCount = 1;
-    vp.scissorCount = 1;
+    VkPipelineInputAssemblyStateCreateInfo inputAsm{};
+    inputAsm.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAsm.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-    VkPipelineRasterizationStateCreateInfo rs{};
-    rs.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rs.polygonMode = VK_POLYGON_MODE_FILL;
-    rs.cullMode = VK_CULL_MODE_NONE;
-    rs.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rs.lineWidth = 1.0f;
+    VkViewport viewport{};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = (float)swapChainExtent.width;
+    viewport.height = (float)swapChainExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
 
-    VkPipelineMultisampleStateCreateInfo ms{};
-    ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = swapChainExtent;
 
-    VkPipelineColorBlendAttachmentState cba{};
-    cba.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    VkPipelineRasterizationStateCreateInfo raster{};
+    raster.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    raster.polygonMode = VK_POLYGON_MODE_FILL;
+    raster.cullMode = VK_CULL_MODE_NONE;
+    raster.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    raster.lineWidth = 1.0f;
+
+    VkPipelineMultisampleStateCreateInfo multisample{};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.blendEnable = VK_FALSE;
+    colorBlendAttachment.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT |
         VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT |
         VK_COLOR_COMPONENT_A_BIT;
-    cba.blendEnable = VK_FALSE;
 
-    VkPipelineColorBlendStateCreateInfo cb{};
-    cb.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    cb.attachmentCount = 1;
-    cb.pAttachments = &cba;
+    VkPipelineColorBlendStateCreateInfo blend{};
+    blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    blend.attachmentCount = 1;
+    blend.pAttachments = &colorBlendAttachment;
 
-    std::vector<VkDynamicState> dyn = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-    VkPipelineDynamicStateCreateInfo ds{};
-    ds.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    ds.dynamicStateCount = static_cast<uint32_t>(dyn.size());
-    ds.pDynamicStates = dyn.data();
+    // -------- PIPELINE LAYOUT (UBO + sampler) --------
+    VkPipelineLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutInfo.setLayoutCount = 1;
+    layoutInfo.pSetLayouts = &postDescriptorSetLayout;
 
-    VkPipelineLayoutCreateInfo pl{};
-    pl.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pl.setLayoutCount = 1;
-    pl.pSetLayouts = &postDescriptorSetLayout;
-    pl.pushConstantRangeCount = 0;
-    pl.pPushConstantRanges = nullptr;
+    if (vkCreatePipelineLayout(device, &layoutInfo, nullptr, &postPipelineLayout) != VK_SUCCESS)
+        throw std::runtime_error("post pipeline layout failed");
 
-    if (vkCreatePipelineLayout(device, &pl, nullptr, &postPipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create post pipeline layout");
-    }
+    // -------- PIPELINE CREATE INFO --------
+    VkGraphicsPipelineCreateInfo pipeInfo{};
+    pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipeInfo.stageCount = 2;
+    pipeInfo.pStages = shaderStages;
+    pipeInfo.pVertexInputState = &vertexInput;
+    pipeInfo.pInputAssemblyState = &inputAsm;
+    pipeInfo.pViewportState = &viewportState;
+    pipeInfo.pRasterizationState = &raster;
+    pipeInfo.pMultisampleState = &multisample;
+    pipeInfo.pColorBlendState = &blend;
+    pipeInfo.layout = postPipelineLayout;
+    pipeInfo.renderPass = VK_NULL_HANDLE;
+    pipeInfo.pDepthStencilState = nullptr;
 
-    VkPipelineRenderingCreateInfo rend{};
-    rend.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-    rend.colorAttachmentCount = 1;
-    rend.pColorAttachmentFormats = &swapChainImageFormat;
-    // we also use depth in pass 2
-    VkFormat depthFormat = findDepthFormat();
-    rend.depthAttachmentFormat = depthFormat;
+    VkPipelineRenderingCreateInfo dynRender{};
+    dynRender.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    dynRender.colorAttachmentCount = 1;
+    dynRender.pColorAttachmentFormats = &swapChainImageFormat;
+    pipeInfo.pNext = &dynRender;
 
-    VkGraphicsPipelineCreateInfo gp{};
-    gp.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    gp.pNext = &rend;
-    gp.stageCount = 2;
-    gp.pStages = stages;
-    gp.pVertexInputState = &vi;
-    gp.pInputAssemblyState = &ia;
-    gp.pViewportState = &vp;
-    gp.pRasterizationState = &rs;
-    gp.pMultisampleState = &ms;
-    gp.pColorBlendState = &cb;
-    gp.pDynamicState = &ds;
-    gp.layout = postPipelineLayout;
-    gp.renderPass = VK_NULL_HANDLE;
-    gp.subpass = 0;
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &postPipeline) != VK_SUCCESS)
+        throw std::runtime_error("post pipeline failed");
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gp, nullptr, &postPipeline) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create post graphics pipeline");
-    }
-
-    vkDestroyShaderModule(device, vs, nullptr);
-    vkDestroyShaderModule(device, fs, nullptr);
+    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    vkDestroyShaderModule(device, fragShaderModule, nullptr);
 }
+
 
 
 void HelloTriangleApplication::createCommandPool() {
@@ -1399,6 +1412,48 @@ void HelloTriangleApplication::createVertexBuffers() {
     makeVB(cubeVertices, cubeVertexBuffer, cubeVertexBufferMemory);
 }
 
+void HelloTriangleApplication::createIndexBuffer() {
+    // auto-generated index list for cubeVertices
+    std::vector<uint32_t> indices(cubeVertices.size());
+    for (uint32_t i = 0; i < indices.size(); i++) {
+        indices[i] = i;
+    }
+
+    indexCount = static_cast<uint32_t>(indices.size());
+    VkDeviceSize bufferSize = sizeof(uint32_t) * indexCount;
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory
+    );
+
+    // copy indices into staging buffer
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, indices.data(), (size_t)bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    // GPU index buffer
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        indexBuffer,
+        indexBufferMemory
+    );
+
+    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+
 // --- UBO / descriptors / command buffers / sync ----------------------------
 void HelloTriangleApplication::createUniformBuffers() {
     VkDeviceSize bs = sizeof(UniformBufferObject);
@@ -1570,261 +1625,155 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t frame) {
 
 
 
-void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageIndex) {
-    VkCommandBufferBeginInfo bi{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    if (vkBeginCommandBuffer(cb, &bi) != VK_SUCCESS)
-        throw std::runtime_error("BeginCmdBuffer failed");
+void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageIndex)
+{
+    VkCommandBufferBeginInfo bi{};
+    bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    vkBeginCommandBuffer(cb, &bi);
 
-    // Common viewport/scissor
-    VkViewport vp{
-        0.0f, 0.0f,
-        (float)swapChainExtent.width,
-        (float)swapChainExtent.height,
-        0.0f, 1.0f
-    };
-    VkRect2D sc{ {0,0}, swapChainExtent };
+    // ---------------------------
+    // PASS 1: Render cube to offscreen
+    // ---------------------------
 
-    // ----------------------------------------------------------------------
-    // MODE A: SceneDirect – render main pipeline directly into swapchain
-    // ----------------------------------------------------------------------
-    if (renderMode == RenderMode::SceneDirect) {
-        // Transition swapchain image to COLOR_ATTACHMENT_OPTIMAL
-        VkImageMemoryBarrier2 toAtt{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        toAtt.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-        toAtt.srcAccessMask = 0;
-        toAtt.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        toAtt.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-        toAtt.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // discard old
-        toAtt.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        toAtt.image = swapChainImages[imageIndex];
-        toAtt.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-        VkDependencyInfo depToAtt{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        depToAtt.imageMemoryBarrierCount = 1;
-        depToAtt.pImageMemoryBarriers = &toAtt;
-        vkCmdPipelineBarrier2(cb, &depToAtt);
-
-        // Attachments: swapchain color + depth
-        VkRenderingAttachmentInfo colorSwap{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        colorSwap.imageView = swapChainImageViews[imageIndex];
-        colorSwap.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colorSwap.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorSwap.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorSwap.clearValue.color = { {0.1f, 0.1f, 0.1f, 1.0f} };
-
-        VkRenderingAttachmentInfo depthAtt{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        depthAtt.imageView = depthImageView;
-        depthAtt.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        depthAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAtt.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAtt.clearValue.depthStencil = { 1.0f, 0 };
-
-        VkRenderingInfo ri{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-        ri.renderArea = { {0,0}, swapChainExtent };
-        ri.layerCount = 1;
-        ri.colorAttachmentCount = 1;
-        ri.pColorAttachments = &colorSwap;
-        ri.pDepthAttachment = &depthAtt;
-
-        vkCmdBeginRendering(cb, &ri);
-
-        // Main pipeline directly to swapchain
-        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-        vkCmdSetViewport(cb, 0, 1, &vp);
-        vkCmdSetScissor(cb, 0, 1, &sc);
-
-        vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
-            pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-
-        VkBuffer vb[] = { cubeVertexBuffer };
-        VkDeviceSize offs[] = { 0 };
-        vkCmdBindVertexBuffers(cb, 0, 1, vb, offs);
-
-        PushConstants pc{};
-        pc.useOverride = 0u;
-        pc.unlit = 0u;
-        vkCmdPushConstants(cb, pipelineLayout,
-            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-            0, (uint32_t)sizeof(PushConstants), &pc);
-
-        vkCmdDraw(cb, (uint32_t)cubeVertices.size(), 1, 0, 0);
-
-        vkCmdEndRendering(cb);
-
-        // Transition swapchain to PRESENT_SRC_KHR
-        VkImageMemoryBarrier2 toPresent{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        toPresent.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        toPresent.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-        toPresent.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
-        toPresent.dstAccessMask = 0;
-        toPresent.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        toPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        toPresent.image = swapChainImages[imageIndex];
-        toPresent.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-        VkDependencyInfo depPresent{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        depPresent.imageMemoryBarrierCount = 1;
-        depPresent.pImageMemoryBarriers = &toPresent;
-        vkCmdPipelineBarrier2(cb, &depPresent);
-
-        if (vkEndCommandBuffer(cb) != VK_SUCCESS)
-            throw std::runtime_error("EndCmdBuffer failed (SceneDirect)");
-
-        return;
-    }
-
-    // ----------------------------------------------------------------------
-    // MODE B: SceneRTT – your existing 2-pass RTT pipeline
-    // ----------------------------------------------------------------------
-
-    // 1) Offscreen: make it writable as color attachment
-    VkImageMemoryBarrier2 offToColor{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+    // Transition offscreen image → COLOR_ATTACHMENT
+    VkImageMemoryBarrier2 offToColor{};
+    offToColor.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     offToColor.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-    offToColor.srcAccessMask = 0;
     offToColor.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    offToColor.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
     offToColor.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     offToColor.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    offToColor.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
     offToColor.image = offscreenImage;
     offToColor.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-    // 2) Swapchain: transition to color attachment for the post pass
-    VkImageMemoryBarrier2 toAtt2{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-    toAtt2.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-    toAtt2.srcAccessMask = 0;
-    toAtt2.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    toAtt2.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-    toAtt2.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    toAtt2.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    toAtt2.image = swapChainImages[imageIndex];
-    toAtt2.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    VkDependencyInfo dep1{};
+    dep1.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dep1.imageMemoryBarrierCount = 1;
+    dep1.pImageMemoryBarriers = &offToColor;
+    vkCmdPipelineBarrier2(cb, &dep1);
 
-    std::array<VkImageMemoryBarrier2, 2> imgBarriers{ offToColor, toAtt2 };
-    VkDependencyInfo depToAtt2{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-    depToAtt2.imageMemoryBarrierCount = (uint32_t)imgBarriers.size();
-    depToAtt2.pImageMemoryBarriers = imgBarriers.data();
-    vkCmdPipelineBarrier2(cb, &depToAtt2);
+    // Dynamic rendering for Pass 1
+    VkRenderingAttachmentInfo colorAtt1{};
+    colorAtt1.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    colorAtt1.imageView = offscreenImageView;
+    colorAtt1.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAtt1.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAtt1.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    VkClearValue clear1 = { { {0.1f, 0.1f, 0.2f, 1.0f} } };
+    colorAtt1.clearValue = clear1;
 
-    // ---------------- PASS 1: scene into offscreen + depth ----------------
-    VkRenderingAttachmentInfo colorOff{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    colorOff.imageView = offscreenImageView;
-    colorOff.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorOff.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorOff.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorOff.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+    VkRenderingInfo render1{};
+    render1.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    render1.colorAttachmentCount = 1;
+    render1.pColorAttachments = &colorAtt1;
+    render1.renderArea = { {0, 0}, swapChainExtent };
+    render1.layerCount = 1;
 
-    VkRenderingAttachmentInfo depthAtt{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    depthAtt.imageView = depthImageView;
-    depthAtt.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-    depthAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAtt.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAtt.clearValue.depthStencil = { 1.0f, 0 };
+    vkCmdBeginRendering(cb, &render1);
 
-    VkRenderingInfo riScene{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-    riScene.renderArea = { {0,0}, swapChainExtent };
-    riScene.layerCount = 1;
-    riScene.colorAttachmentCount = 1;
-    riScene.pColorAttachments = &colorOff;
-    riScene.pDepthAttachment = &depthAtt;
+    // REQUIRED: viewport + scissor for Pass 1
+    VkViewport vp1{};
+    vp1.x = 0.0f;
+    vp1.y = 0.0f;
+    vp1.width = static_cast<float>(swapChainExtent.width);
+    vp1.height = static_cast<float>(swapChainExtent.height);
+    vp1.minDepth = 0.0f;
+    vp1.maxDepth = 1.0f;
+    vkCmdSetViewport(cb, 0, 1, &vp1);
 
-    vkCmdBeginRendering(cb, &riScene);
+    VkRect2D sc1{};
+    sc1.offset = { 0, 0 };
+    sc1.extent = swapChainExtent;
+    vkCmdSetScissor(cb, 0, 1, &sc1);
 
+    // Bind cube pipeline & descriptors
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-    vkCmdSetViewport(cb, 0, 1, &vp);
-    vkCmdSetScissor(cb, 0, 1, &sc);
+    vkCmdBindDescriptorSets(
+        cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipelineLayout, 0, 1,
+        &descriptorSets[currentFrame], 0, nullptr
+    );
 
-    vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
-        pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-
-    VkBuffer vb[] = { cubeVertexBuffer };
-    VkDeviceSize offs[] = { 0 };
-    vkCmdBindVertexBuffers(cb, 0, 1, vb, offs);
-
-    PushConstants pc{};
-    pc.useOverride = 0u;
-    pc.unlit = 0u;
-    vkCmdPushConstants(cb, pipelineLayout,
-        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-        0, (uint32_t)sizeof(PushConstants), &pc);
-
-    vkCmdDraw(cb, (uint32_t)cubeVertices.size(), 1, 0, 0);
+    VkDeviceSize offs = 0;
+    vkCmdBindVertexBuffers(cb, 0, 1, &cubeVertexBuffer, &offs);
+    vkCmdBindIndexBuffer(cb, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(cb, indexCount, 1, 0, 0, 0);
 
     vkCmdEndRendering(cb);
 
-    // ------------- Transition offscreen to sampled for post pass ----------
-    VkImageMemoryBarrier2 offToSample{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-    offToSample.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    offToSample.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-    offToSample.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-    offToSample.dstAccessMask = VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
-    offToSample.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    offToSample.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    offToSample.image = offscreenImage;
-    offToSample.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    // ---------------------------
+    // Barrier: Pass 1 → Pass 2
+    // ---------------------------
 
-    VkDependencyInfo depOff{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-    depOff.imageMemoryBarrierCount = 1;
-    depOff.pImageMemoryBarriers = &offToSample;
-    vkCmdPipelineBarrier2(cb, &depOff);
+    VkImageMemoryBarrier2 colorToRead{};
+    colorToRead.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    colorToRead.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    colorToRead.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    colorToRead.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+    colorToRead.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+    colorToRead.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorToRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    colorToRead.image = offscreenImage;
+    colorToRead.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-    // ---------------- PASS 2: textured cube into swapchain -----------------
-    VkRenderingAttachmentInfo colorSwap{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    colorSwap.imageView = swapChainImageViews[imageIndex];
-    colorSwap.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorSwap.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorSwap.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorSwap.clearValue.color = { {0.1f, 0.1f, 0.1f, 1.0f} };
+    VkDependencyInfo dep2{};
+    dep2.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dep2.imageMemoryBarrierCount = 1;
+    dep2.pImageMemoryBarriers = &colorToRead;
+    vkCmdPipelineBarrier2(cb, &dep2);
 
-    VkRenderingAttachmentInfo depthAtt2{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    depthAtt2.imageView = depthImageView;
-    depthAtt2.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-    depthAtt2.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAtt2.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAtt2.clearValue.depthStencil = { 1.0f, 0 };
+    // ---------------------------
+    // PASS 2: Fullscreen Blur (offscreen -> swapchain)
+    // ---------------------------
 
-    VkRenderingInfo riPost{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-    riPost.renderArea = { {0,0}, swapChainExtent };
-    riPost.layerCount = 1;
-    riPost.colorAttachmentCount = 1;
-    riPost.pColorAttachments = &colorSwap;
-    riPost.pDepthAttachment = &depthAtt2;
+    VkRenderingAttachmentInfo colorAtt2{};
+    colorAtt2.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    colorAtt2.imageView = swapChainImageViews[imageIndex];
+    colorAtt2.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAtt2.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAtt2.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAtt2.clearValue = { { {0.0f, 0.0f, 0.0f, 1.0f} } };
 
-    vkCmdBeginRendering(cb, &riPost);
+    VkRenderingInfo render2{};
+    render2.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    render2.colorAttachmentCount = 1;
+    render2.pColorAttachments = &colorAtt2;
+    render2.renderArea = { {0, 0}, swapChainExtent };
+    render2.layerCount = 1;
+
+    vkCmdBeginRendering(cb, &render2);
+
+    // REQUIRED: viewport + scissor for Pass 2
+    VkViewport vp2{};
+    vp2.x = 0.0f;
+    vp2.y = 0.0f;
+    vp2.width = static_cast<float>(swapChainExtent.width);
+    vp2.height = static_cast<float>(swapChainExtent.height);
+    vp2.minDepth = 0.0f;
+    vp2.maxDepth = 1.0f;
+    vkCmdSetViewport(cb, 0, 1, &vp2);
+
+    VkRect2D sc2{};
+    sc2.offset = { 0, 0 };
+    sc2.extent = swapChainExtent;
+    vkCmdSetScissor(cb, 0, 1, &sc2);
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, postPipeline);
-    vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
-        postPipelineLayout, 0, 1, &postDescriptorSets[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(
+        cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        postPipelineLayout, 0, 1,
+        &postDescriptorSets[currentFrame], 0, nullptr
+    );
 
-    vkCmdSetViewport(cb, 0, 1, &vp);
-    vkCmdSetScissor(cb, 0, 1, &sc);
-
-    VkBuffer vb2[] = { cubeVertexBuffer };
-    VkDeviceSize offs2[] = { 0 };
-    vkCmdBindVertexBuffers(cb, 0, 1, vb2, offs2);
-
-    vkCmdDraw(cb, static_cast<uint32_t>(cubeVertices.size()), 1, 0, 0);
+    // fullscreen triangle
+    vkCmdDraw(cb, 3, 1, 0, 0);
 
     vkCmdEndRendering(cb);
 
-    // ---------------- Transition swapchain for present --------------------
-    VkImageMemoryBarrier2 toPresent{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-    toPresent.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    toPresent.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-    toPresent.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
-    toPresent.dstAccessMask = 0;
-    toPresent.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    toPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    toPresent.image = swapChainImages[imageIndex];
-    toPresent.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-    VkDependencyInfo depPresent{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-    depPresent.imageMemoryBarrierCount = 1;
-    depPresent.pImageMemoryBarriers = &toPresent;
-    vkCmdPipelineBarrier2(cb, &depPresent);
-
-    if (vkEndCommandBuffer(cb) != VK_SUCCESS)
-        throw std::runtime_error("EndCmdBuffer failed (SceneRTT)");
+    vkEndCommandBuffer(cb);
 }
+
+
 
 
 void HelloTriangleApplication::drawFrame() {
