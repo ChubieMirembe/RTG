@@ -320,24 +320,3 @@ knowledge of multi pass rendering, descriptor sets, and pipeline management in V
 **Reflection:**
 
 
----
-
-
-### FURTHER EXPLORATION
-
-**Solution:** 
-
-```cpp
-```
-```cpp
-```
-```c++
-```
-```c++
-```
-**Output:**
-
-![](images/ex5.png)
-
-**Reflection:**
-

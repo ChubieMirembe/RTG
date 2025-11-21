@@ -219,6 +219,16 @@ public:
 
 private:
     // Core
+
+    std::chrono::steady_clock::time_point startTime;
+
+    struct FirePush {
+        float time;
+        float intensity;
+        float pad0;
+        float pad1;
+    };
+
     GLFWwindow* window = {};
     bool framebufferResized = false;
     uint32_t currentFrame = 0;
@@ -387,6 +397,7 @@ private:
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
+
 };
 
 // --- Implementation --------------------------------------------------------
@@ -445,7 +456,7 @@ void HelloTriangleApplication::initVulkan() {
 
     STEP("createCommandBuffers");  createCommandBuffers();
     STEP("createSyncObjects");     createSyncObjects();
-
+    startTime = std::chrono::steady_clock::now();
 }
 
 
@@ -902,29 +913,21 @@ void HelloTriangleApplication::createDescriptorSetLayout() {
 }
 
 void HelloTriangleApplication::createPostDescriptorSetLayout() {
-
-    // binding 0 : UBO (same as before)
+    // binding 0 — UBO (not actually used in glow.frag, but harmless)
     VkDescriptorSetLayoutBinding ubo{};
     ubo.binding = 0;
     ubo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     ubo.descriptorCount = 1;
     ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    // binding 1 : blurred texture
-    VkDescriptorSetLayoutBinding blurred{};
-    blurred.binding = 1;
-    blurred.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    blurred.descriptorCount = 1;
-    blurred.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // binding 1 — the offscreen sharp scene texture
+    VkDescriptorSetLayoutBinding sceneTex{};
+    sceneTex.binding = 1;
+    sceneTex.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    sceneTex.descriptorCount = 1;
+    sceneTex.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    // binding 2 : original sharp texture
-    VkDescriptorSetLayoutBinding sharp{};
-    sharp.binding = 2;
-    sharp.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    sharp.descriptorCount = 1;
-    sharp.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    std::array<VkDescriptorSetLayoutBinding, 3> bindings{ ubo, blurred, sharp };
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings{ ubo, sceneTex };
 
     VkDescriptorSetLayoutCreateInfo ci{};
     ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -935,10 +938,13 @@ void HelloTriangleApplication::createPostDescriptorSetLayout() {
         throw std::runtime_error("failed to create post descriptor layout");
 }
 
+
 void HelloTriangleApplication::createPostDescriptorSets() {
     postDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
 
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, postDescriptorSetLayout);
+    std::vector<VkDescriptorSetLayout> layouts(
+        MAX_FRAMES_IN_FLIGHT, postDescriptorSetLayout
+    );
 
     VkDescriptorSetAllocateInfo ai{};
     ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -946,22 +952,19 @@ void HelloTriangleApplication::createPostDescriptorSets() {
     ai.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
     ai.pSetLayouts = layouts.data();
 
-    if (vkAllocateDescriptorSets(device, &ai, postDescriptorSets.data()) != VK_SUCCESS) {
+    if (vkAllocateDescriptorSets(device, &ai, postDescriptorSets.data()) != VK_SUCCESS)
         throw std::runtime_error("failed to allocate post descriptor sets");
-    }
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 
-        // binding 0: same UBO as main pipeline
         VkDescriptorBufferInfo buf{};
         buf.buffer = uniformBuffers[i];
         buf.offset = 0;
         buf.range = sizeof(UniformBufferObject);
 
-        // binding 1: ONLY ONE texture (the original offscreen RTT)
         VkDescriptorImageInfo sceneTex{};
         sceneTex.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        sceneTex.imageView = offscreenImageView;   // the RTT image from pass 1
+        sceneTex.imageView = offscreenImageView;
         sceneTex.sampler = offscreenSampler;
 
         std::array<VkWriteDescriptorSet, 2> writes{};
@@ -974,7 +977,7 @@ void HelloTriangleApplication::createPostDescriptorSets() {
         writes[0].descriptorCount = 1;
         writes[0].pBufferInfo = &buf;
 
-        // binding 1 → sceneTex (sharp scene, used for blur+glow in shader)
+        // binding 1 → scene (sharp RTT)
         writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[1].dstSet = postDescriptorSets[i];
         writes[1].dstBinding = 1;
@@ -984,12 +987,13 @@ void HelloTriangleApplication::createPostDescriptorSets() {
 
         vkUpdateDescriptorSets(
             device,
-            static_cast<uint32_t>(writes.size()),
+            (uint32_t)writes.size(),
             writes.data(),
             0, nullptr
         );
     }
 }
+
 
 
 
@@ -1145,11 +1149,9 @@ void HelloTriangleApplication::createPostPipeline() {
         vertStage, fragStage
     };
 
-    // -------- FULLSCREEN QUAD HAS NO VERTEX INPUTS --------
+    // fullscreen triangle: no vertex buffers
     VkPipelineVertexInputStateCreateInfo vertexInput{};
     vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInput.vertexBindingDescriptionCount = 0;
-    vertexInput.vertexAttributeDescriptionCount = 0;
 
     VkPipelineInputAssemblyStateCreateInfo inputAsm{};
     inputAsm.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -1198,16 +1200,23 @@ void HelloTriangleApplication::createPostPipeline() {
     blend.attachmentCount = 1;
     blend.pAttachments = &colorBlendAttachment;
 
-    // -------- PIPELINE LAYOUT (UBO + sampler) --------
+    // --- NEW: push constant range for FirePush ---
+    VkPushConstantRange pcRange{};
+    pcRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    pcRange.offset = 0;
+    pcRange.size = sizeof(FirePush);
+
+    // pipeline layout: post descriptor set + push constants
     VkPipelineLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutInfo.setLayoutCount = 1;
     layoutInfo.pSetLayouts = &postDescriptorSetLayout;
+    layoutInfo.pushConstantRangeCount = 1;
+    layoutInfo.pPushConstantRanges = &pcRange;
 
     if (vkCreatePipelineLayout(device, &layoutInfo, nullptr, &postPipelineLayout) != VK_SUCCESS)
         throw std::runtime_error("post pipeline layout failed");
 
-    // -------- PIPELINE CREATE INFO --------
     VkGraphicsPipelineCreateInfo pipeInfo{};
     pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipeInfo.stageCount = 2;
@@ -1234,6 +1243,7 @@ void HelloTriangleApplication::createPostPipeline() {
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
 }
+
 
 
 
@@ -1757,6 +1767,21 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer cb, uint32_t 
         0, 1,
         &postDescriptorSets[currentFrame],
         0, nullptr);
+    auto now = std::chrono::steady_clock::now();
+    float t = std::chrono::duration<float>(now - startTime).count();
+
+    FirePush firePc{};
+    firePc.time = t;
+    firePc.intensity = 2.0f; // tweak strength of fire aura
+
+    vkCmdPushConstants(
+        cb,
+        postPipelineLayout,
+        VK_SHADER_STAGE_FRAGMENT_BIT,
+        0,
+        sizeof(FirePush),
+        &firePc
+    );
 
     // Fullscreen triangle for glow
     vkCmdDraw(cb, 3, 1, 0, 0);
