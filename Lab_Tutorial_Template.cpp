@@ -123,7 +123,7 @@ struct PushConstants {
     uint32_t  _pad1;         // 4   -> total 80 bytes
 };
 
-auto faceUV = [&](float S, glm::vec2 uv) { return uv; };
+auto faceUV = [](float S, glm::vec2 uv) { return uv; };
 
 std::vector<Vertex> cubeVertices = {
     // Front (+Z), 1×1 coins
@@ -176,10 +176,7 @@ std::vector<Vertex> cubeVertices = {
 };
 
 // --- Forward declarations of Vulkan helpers ---
-VkResult CreateDebugUtilsMessengerEXT(
-    VkInstance, const VkDebugUtilsMessengerCreateInfoEXT*,
-    const VkAllocationCallbacks*, VkDebugUtilsMessengerEXT*);
-void DestroyDebugUtilsMessengerEXT(VkInstance, VkDebugUtilsMessengerEXT, const VkAllocationCallbacks*);
+
 // ---- Debug utils loader helpers (define these in your .cpp) ----
 static VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance,
@@ -555,6 +552,11 @@ void HelloTriangleApplication::createInstance() {
     auto extensions = getRequiredExtensions();
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
+    
+    #ifdef __APPLE__
+    // Needed so MoltenVK gets enumerated as a portability driver
+    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    #endif
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     if (enableValidationLayers) {
@@ -611,6 +613,11 @@ std::vector<const char*> HelloTriangleApplication::getRequiredExtensions() {
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
     if (enableValidationLayers) extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    
+    #ifdef __APPLE__
+        extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    #endif
+    
     return extensions;
 }
 VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback(

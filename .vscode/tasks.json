@@ -30,6 +30,34 @@
             "problemMatcher": []
         },
         {
+            "label": "Compile glow.frag",
+            "type": "shell",
+            "command": "${env:VULKAN_SDK}/bin/glslc",
+            "args": [
+                "${workspaceFolder}/shaders/glow.frag",
+                "-o",
+                "${workspaceFolder}/shaders/glow.frag.spv"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Compile fullscreen.vert",
+            "type": "shell",
+            "command": "${env:VULKAN_SDK}/bin/glslc",
+            "args": [
+                "${workspaceFolder}/shaders/fullscreen.vert",
+                "-o",
+                "${workspaceFolder}/shaders/fullscreen.vert.spv"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },   
+        {
             "label": "Build Vulkan app (macOS)",
             "type": "shell",
             "command": "/usr/bin/clang++",
