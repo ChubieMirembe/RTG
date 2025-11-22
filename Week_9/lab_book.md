@@ -304,19 +304,102 @@ knowledge of multi pass rendering, descriptor sets, and pipeline management in V
 ### EXERCISE 4:  OBJECT ON FIRE ANIMATION
 
 **Solution:** 
+To extend the basic glow effect into a fire effect, I began by modifying the behaviour of the post-processing blur so that it no longer spread evenly in all directions. The original glow simply averaged neighbouring texels with a uniform box filter, producing a soft halo. To push this towards a fire-like appearance, I added animated distortion to the sampling coordinates using a combination of sine-based heat wobble and a small hash noise function. This caused the blurred samples to shift unpredictably over time, giving the impression of turbulent heat. I then biased the blur vertically so that samples were pulled upwards, creating a rising motion characteristic of flames. The blur kernel was reshaped to favour vertical stretching and reduced horizontally, which stopped the effect from forming a thick band around the cube and instead made it taper more naturally above it. Additional masking was introduced to fade the effect as it moved away from the cube’s centre and upper region, preventing the fire from looking uniform. Finally, a warm colour tint and a time-varying flicker were applied to the blurred component, giving the result the bright orange/yellow appearance of burning. These combined adjustments transformed the original glow into a dynamic, directional, and visually irregular fire effect around the cube.
+
+- Fragment shader for fire effect
 
 ```cpp
+#version 450
+
+layout(location = 0) in vec2 uv;
+layout(location = 0) out vec4 outColor;
+
+layout(set = 0, binding = 1) uniform sampler2D sceneTex;
+
+layout(push_constant) uniform FireParams {
+    float time;
+    float intensity;
+    float pad0;
+    float pad1;
+} fire;
+
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+void main() {
+    vec2 texSize = vec2(textureSize(sceneTex, 0));
+
+    vec2 texel = 3.5 / texSize;
+    vec4 sharp = texture(sceneTex, uv);
+
+    float noise = sin(uv.y * 60.0 + fire.time * 10.0) *
+                  cos(uv.x * 40.0 - fire.time * 7.0);
+    vec2 wobble = texel * 8.0 * noise;
+
+    int   radius    = 10;
+    vec3  blurSum   = vec3(0.0);
+    float weightSum = 0.0;
+
+
+    float v = uv.y;
+
+    float centerX = 0.5;
+    float distFromCenter = abs(uv.x - centerX);
+
+    for (int x = -radius; x <= radius; x++) {
+        for (int y = -radius; y <= radius; y++) {
+            vec2 o = vec2(x, y);
+
+            float dist = length(vec2(o.x * 0.35, o.y));
+            float w = max(0.0, 1.0 - dist / float(radius + 1));
+            float nTap = hash(o * 3.17 + uv * 25.0 + fire.time);
+
+            float baseUp = float(radius + 1 - y) / float(radius + 1);
+            baseUp = max(baseUp, 0.0);
+
+            float uneven = 0.6 + 0.8 * nTap;
+
+
+            float heightMask = 1.0 - smoothstep(0.45, 0.85, v);
+            float sideMask = 1.0 - smoothstep(0.18, 0.25, distFromCenter);
+
+            float upward = baseUp * uneven * heightMask * sideMask;
+            upward = pow(upward, 1.3);
+
+            float stretch = 0.05;
+
+            vec2 sampleUV =
+                uv
+                + wobble
+                + o * texel
+                + vec2(0.0, upward * stretch);
+
+            vec3 sampleCol = texture(sceneTex, sampleUV).rgb;
+
+            float weightJitter = 0.7 + 0.6 * (nTap - 0.5);
+            blurSum   += sampleCol * w * weightJitter;
+            weightSum += w * weightJitter;
+        }
+    }
+
+    vec3 blurred = blurSum / max(weightSum, 0.0001);
+
+    vec3 aura = max(blurred - sharp.rgb, 0.0);
+
+    vec3 fireTint = vec3(1.0, 0.6, 0.1);
+    float flicker = 0.7 + 0.3 * sin(fire.time * 8.0 + uv.y * 50.0);
+
+    vec3 color = sharp.rgb + aura * fire.intensity * fireTint * flicker;
+
+    outColor = vec4(color, 1.0);
+}
 ```
-```cpp
-```
-```c++
-```
-```c++
-```
+
 **Output:**
 
 ![](images/ex4.png)
 
 **Reflection:**
-
+Turning the glow effect into a fire effect helped me understand how post processing can shape the behaviour of a visual effect. I expected stronger blurring to be enough, but I discovered that fire needs motion, direction, and variation to look convincing. Introducing noise, upward stretching, and uneven sampling showed me how small adjustments to texture coordinates can dramatically change the result. I also realised that the first pass must contain enough brightness for the second pass to build on, because fire cannot form from a flat or dim input. Overall this task showed me that effective visual effects often come from combining simple techniques such as blurring, distortion, colour tinting, and animation to create something that feels natural and dynamic.
 
