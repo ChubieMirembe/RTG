@@ -1,104 +1,108 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "Compile particle.vert",
-            "type": "shell",
-            "command": "${env:VULKAN_SDK}/bin/glslc",
-            "args": [
-                "${workspaceFolder}/shaders/particle.vert",
-                "-o",
-                "${workspaceFolder}/shaders/particle.vert.spv"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Compile particle.frag",
-            "type": "shell",
-            "command": "${env:VULKAN_SDK}/bin/glslc",
-            "args": [
-                "${workspaceFolder}/shaders/particle.frag",
-                "-o",
-                "${workspaceFolder}/shaders/particle.frag.spv"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Compile glow.frag",
-            "type": "shell",
-            "command": "${env:VULKAN_SDK}/bin/glslc",
-            "args": [
-                "${workspaceFolder}/shaders/glow.frag",
-                "-o",
-                "${workspaceFolder}/shaders/glow.frag.spv"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Compile fullscreen.vert",
-            "type": "shell",
-            "command": "${env:VULKAN_SDK}/bin/glslc",
-            "args": [
-                "${workspaceFolder}/shaders/fullscreen.vert",
-                "-o",
-                "${workspaceFolder}/shaders/fullscreen.vert.spv"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
-        },   
-        {
-            "label": "Build Vulkan app (macOS)",
-            "type": "shell",
-            "command": "/usr/bin/clang++",
-            "args": [
-                "-std=gnu++17",
-                "-g",
-                "-fcolor-diagnostics",
-                "-fansi-escape-codes",
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compile particle.vert",
+      "type": "shell",
+      "command": "${env:VULKAN_SDK}/bin/glslc",
+      "args": [
+        "${workspaceFolder}/shaders/particle.vert",
+        "-o",
+        "${workspaceFolder}/shaders/particle.vert.spv"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Compile particle.frag",
+      "type": "shell",
+      "command": "${env:VULKAN_SDK}/bin/glslc",
+      "args": [
+        "${workspaceFolder}/shaders/particle.frag",
+        "-o",
+        "${workspaceFolder}/shaders/particle.frag.spv"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Compile glow.frag",
+      "type": "shell",
+      "command": "${env:VULKAN_SDK}/bin/glslc",
+      "args": [
+        "${workspaceFolder}/shaders/glow.frag",
+        "-o",
+        "${workspaceFolder}/shaders/glow.frag.spv"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Compile fullscreen.vert",
+      "type": "shell",
+      "command": "${env:VULKAN_SDK}/bin/glslc",
+      "args": [
+        "${workspaceFolder}/shaders/fullscreen.vert",
+        "-o",
+        "${workspaceFolder}/shaders/fullscreen.vert.spv"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Vulkan app (macOS)",
+      "type": "shell",
+      "command": "/usr/bin/clang++",
+      "args": [
+        "-std=gnu++17",
+        "-g",
+        "-fcolor-diagnostics",
+        "-fansi-escape-codes",
 
-                "-I${workspaceFolder}/Dependencies/STB",
-                "-I/usr/local/opt/glfw/include",
-                "-I/usr/local/opt/glm/include",
+        "-I${workspaceFolder}/Dependencies/STB",
+        "-I/usr/local/opt/glfw/include",
+        "-I/usr/local/opt/glm/include",
 
-                // main C++ file(s) – adjust the name if needed
-                "${workspaceFolder}/Lab_Tutorial_Template.cpp",
+        "${workspaceFolder}/Lab_Tutorial_Template.cpp",
 
-                "-L/usr/local/opt/glfw/lib",
-                "-L${env:VULKAN_SDK}/lib",
+        "-L/usr/local/opt/glfw/lib",
+        "-L${env:VULKAN_SDK}/lib",
 
-                "-lglfw",
-                "-lvulkan",
+        "-lglfw",
+        "-lvulkan",
 
-                "-framework", "Cocoa",
-                "-framework", "IOKit",
-                "-framework", "CoreVideo",
+        "-framework",
+        "Cocoa",
+        "-framework",
+        "IOKit",
+        "-framework",
+        "CoreVideo",
 
-                "-o",
-                "${workspaceFolder}/Lab_Tutorial_Template"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": "$gcc",
-            "dependsOn": [
-                "Compile particle.vert",
-                "Compile particle.frag"
-            ]
-        }
-    ]
+        "-o",
+        "${workspaceFolder}/Lab_Tutorial_Template"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$gcc",
+      "dependsOn": [
+        "Compile particle.vert",
+        "Compile particle.frag",
+        "Compile glow.frag",
+        "Compile fullscreen.vert"
+      ]
+    }
+  ]
 }
